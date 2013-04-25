@@ -126,9 +126,14 @@ There are several useful xml based utilities.  More useful than novel
 Below, are some examples that you can cut and paste.  
 
 
+=head2 Post xml method to UCS - for example to create a service profile
+
+    post --cfg=./config/demo.conf --xml=createSp.xml
+
+
 =head2 Get all instances of a given managed object (eg. computeBlade).
 
-    perl resolve-class --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --pretty
+    resolve-class --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --pretty
 
 
 =head2 Get a named managed object and all its children (eg. computeBlade)

@@ -188,12 +188,12 @@ UcsSimple::ClassMeta - Wrapper for UCS Class meta information
 =head1 SYNOPSIS
 
 Typically, this class would be instantiated and returned by a meta data aware class.
-For example, the schema parser UCS::SchemaParser
+For example, the schema parser UcsSimple::SchemaParser
 
-    my $lSchemaParser = UCS::SchemaParser->new({schema => "USCM-IN.XSD" });
+    my $lSchemaParser = UcsSimple::SchemaParser->new({schema => "USCM-IN.XSD" });
     my $lClassMeta = $lSchemaParser->getClassMeta();
     $lClassMeta->applyTypicalUcsMods();
-    my $lCfgDoc = UCS::DomUtil::getConfigMo({doc=>$lXmlDoc, classMeta=>$lClassMeta});
+    my $lCfgDoc = UcsSimple::DomUtil::getConfigMo({doc=>$lXmlDoc, classMeta=>$lClassMeta});
     print  $lCfgDoc->toString();
 
 

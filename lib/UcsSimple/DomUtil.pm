@@ -202,7 +202,7 @@ sub getSimplePrintVisitor
                     {
                         if ($lTree)
                         {
-                            print UCS::Util::getIndent((getLevel($aInNode)) * 2);
+                            print UcsSimple::Util::getIndent((getLevel($aInNode)) * 2);
                         }
                         print("  " . $lAttr->localname() . "=" . "\"" . $lVal . "\"\n");
                     }

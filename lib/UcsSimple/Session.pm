@@ -258,11 +258,11 @@ Provides a wrapper around UCS session details.
     use UcsSimple::CommMgr;
     use UcsSimple::Session;
 
-    my $lSession = UCS::Session->new(
+    my $lSession = UcsSimple::Session->new(
         { userName => $lUname, password => $lPasswd, uri => $lUri }
     );
 
-    $lCommMgr = UCS::CommMgr->new({session => $lSession});
+    $lCommMgr = UcsSimple::CommMgr->new({session => $lSession});
     my $lCookie = $lCommMgr->doLogin();
     croak "Failed to get cookie" if (!defined $lCookie);
 

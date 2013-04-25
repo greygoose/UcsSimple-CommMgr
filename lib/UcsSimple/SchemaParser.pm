@@ -166,7 +166,7 @@ This is useful for programmatically manipulating UCS xml objects.
     use UcsSimple::SchemaParser;
     use UcsSimple::ClassMeta;
 
-    my $lSchemaParser = UCS::SchemaParser->new({schema => $lSchemaFile});
+    my $lSchemaParser = UcsSimple::SchemaParser->new({schema => $lSchemaFile});
     my $lClassMeta = $lSchemaParser->getClassMeta();
 
     ...

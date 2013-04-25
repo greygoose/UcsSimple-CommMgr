@@ -1,2 +1,4 @@
-..so much 
+Finish certificate handling - i.e., communications manager non-secure mode for now.
+Make sure we don't log the password during while sending requests.
+
 

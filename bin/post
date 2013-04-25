@@ -80,7 +80,8 @@ else
 my $lSession = UcsSimple::Session->new(
     {userName => $lUname, password => $lPasswd, uri => $lUri });
 
-$lCommMgr = UcsSimple::CommMgr->new({session => $lSession});
+$lCommMgr = UcsSimple::CommMgr->new(
+    { session => $lSession, ssl_opts => {no_verify => 1} });
 
 my $lCookie = $lCommMgr->doLogin();
 croak "Failed to get cookie" if (!defined $lCookie);
@@ -113,7 +114,7 @@ sub usage
 
 
 
-initLogging
+sub initLogging
 {
     my ($aInLogCfgFile) = @_;
 
@@ -166,11 +167,11 @@ post - a simple script that logs in and http POSTs xml to a UCS system.
 
 =head1 USAGE
 
-Post [options]
+post [options]
 
-    Post --uname=admin --passwd=pass --xml=simple.xml --uri=https://ucs-vip-ip/nuova --pretty 
+    post --uname=admin --passwd=pass --xml=createSp.xml --uri=https://ucs-vip-ip/nuova --pretty 
 
-    Post --cfg=./config/demo.conf --xml=simple.xml uri=https://ucs-vip-ip/nuova --hier --pretty
+    post --cfg=./config/demo.conf --xml=createSp.xml --pretty
 
 
 =head1 REQUIRED ARGUMENTS
@@ -184,7 +185,6 @@ UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
 
 =head1 OPTIONS
 
-    --hier                    Return hierarchy of found managed objects.
     --cfg=<config-file>       Specify a configuration file.
     --log4perl=<cfg-file>     The log4perl config file.
     --pretty                  Pretty print the UCS response.

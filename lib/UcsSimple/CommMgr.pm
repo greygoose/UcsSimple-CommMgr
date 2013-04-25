@@ -14,7 +14,7 @@ use Data::Dumper;
 use XML::Simple;
 use XML::Handler::YAWriter;
 use Log::Log4perl qw (get_logger);
-use Mozilla::CA qw(SSL_ca_file);
+use Mozilla::CA qw(SSL_ca_file SSL_ca_path);
 
 use UcsSimple::DomUtil;
 
@@ -36,10 +36,32 @@ sub new
     }
     $self->session($aInRefArgs->{session});
 
-    $self->{userAgent} = LWP::UserAgent->new(SSL_verify_mode => 0x00);
-    #$self->{userAgent}->ssl_opts( SSL_ca_file => Mozilla::CA::SSL_ca_file() );
-    $self->{userAgent}->ssl_opts( SSL_verify_mode => 0x00 );
-    $self->{userAgent}->ssl_opts( verify_hostname => 0 );
+    if (!exists($aInRefArgs->{'ssl_opts'}))
+    {
+        confess "You must provide ssl opts (you can pass no_verify for no certificate validation)";
+    }
+
+    # Simple processing of ssl options
+    my $lSslOptsRef = $aInRefArgs->{'ssl_opts'};
+
+    $self->{userAgent} = LWP::UserAgent->new();
+    if (exists($lSslOptsRef->{'no_verify'})  && 
+       ($lSslOptsRef->{'no_verify'}))
+    {
+        $self->{userAgent}->ssl_opts( SSL_verify_mode => 0x00 );
+        $self->{userAgent}->ssl_opts( verify_hostname => 0 );
+    }
+    else
+    {
+        foreach my $lKey (keys %{$lSslOptsRef})
+        {        
+            $self->{userAgent}->ssl_opts( $lKey => $lSslOptsRef->{$lKey});
+
+            get_logger(__PACKAGE__)->info(
+                qq(Setting ssl option  "$lKey" to  "$lSslOptsRef->{$lKey}" ));
+        }
+    }
+
     $self->{userAgent}->timeout(6000);
 
     return $self;
@@ -443,11 +465,11 @@ For example, to login and get a list of all instances of lsServer:
     use UcsSimple::CommMgr;
     use UcsSimple::Session;
 
-    my $lSession = UCS::Session->new(
+    my $lSession = UcsSimple::Session->new(
         { userName => $lUname, password => $lPasswd, uri => $lUri }
     );
 
-    $lCommMgr = UCS::CommMgr->new({session => $lSession});
+    $lCommMgr = UcsSimple::CommMgr->new({session => $lSession});
     my $lCookie = $lCommMgr->doLogin();
     croak "Failed to get cookie" if (!defined $lCookie);
 
@@ -531,7 +553,7 @@ Post XML to UCS system
 Subscribe to UCS event channel.
 
     # Have method printCb called when events received
-    $lCommMgr->doSubscribe({eventCb => UCS::EventUtil::getEventHandler(\&printCb)});
+    $lCommMgr->doSubscribe({eventCb => UcsSimple::EventUtil::getEventHandler(\&printCb)});
 
 
 =head1 AUTHOR

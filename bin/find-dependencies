@@ -71,7 +71,7 @@ initLogging($lLogCfgFile);
 my $lSession = UcsSimple::Session->new(
     {userName => $lUname, password => $lPasswd, uri => $lUri });
 
-$lCommMgr = UcsSimple::CommMgr->new({session => $lSession});
+$lCommMgr = UcsSimple::CommMgr->new({session => $lSession, no_verify => 1 });
 
 my $lCookie = $lCommMgr->doLogin();
 croak "Failed to get cookie" if (!defined $lCookie);
