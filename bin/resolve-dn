@@ -69,7 +69,8 @@ initLogging($lLogCfgFile);
 my $lSession = UcsSimple::Session->new(
     {userName => $lUname, password => $lPasswd, uri => $lUri });
 
-$lCommMgr = UcsSimple::CommMgr->new({session => $lSession, no_verify => 1 });
+$lCommMgr = UcsSimple::CommMgr->new(
+    { session => $lSession, ssl_opts => {no_verify => 1} });
 
 my $lCookie = $lCommMgr->doLogin();
 croak "Failed to get cookie" if (!defined $lCookie);
@@ -98,7 +99,7 @@ exit $lRetCode;
 sub usage 
 {
     print "For usage information:\n";
-    print "\n\tresolve-dn\n\n";
+    print "\n\tperldoc resolve-dn\n\n";
     exit;
 }
 
@@ -161,7 +162,7 @@ resolve-dn [options]
 
     resolve-dn --uname=admin --passwd=pass --dn=org-root/ls-VmScale --uri=https://ucs-vip-ip/nuova --pretty 
 
-    resolve-dn --cfg=./config/demo.conf --dn=org-root uri=https://ucs-vip-ip/nuova --hier --pretty
+    resolve-dn --cfg=./config/demo.conf --dn=org-root --hier --pretty
 
 
 =head1 REQUIRED ARGUMENTS

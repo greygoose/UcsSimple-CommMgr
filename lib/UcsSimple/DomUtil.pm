@@ -10,6 +10,7 @@ use vars qw($VERSION @EXPORT @EXPORT_OK @ISA);
 use Carp qw(croak cluck confess);
 use XML::LibXML;
 use UcsSimple::ClassMeta;
+use Data::Dumper;
 
 @ISA    = qw( Exporter );
 @EXPORT_OK = qw( &pruneDomTree &getUcsAttrs &getConfigConfMo &getConfigConfMos &populateDn &getEstimateImpact );
@@ -80,11 +81,15 @@ sub pruneDomTree
                 my @lAttrs = $aInNode->attributes(); 
                 foreach my $lAttr (@lAttrs)
                 {
-                    # print "Current attribute : ($lAttr)\n";
-                    # print "Defined attribute : ($lClass)($lAttr)\n";
-                    if (!exists $aInKeepAttrMap->{$lClass}->{$lAttr})
+                    my $lAttrName = $lAttr->nodeName();
+                    # print "Current attribute : ($lClass)($lAttrName)\n";
+                    # Do not delete dn and rn
+                    if ((!(exists $aInKeepAttrMap->{$lClass}->{$lAttrName})) && 
+                       ($lAttrName ne 'dn') &&
+                       ($lAttrName ne 'rn'))
                     {
-                        $aInNode->removeAttribute($lAttr);
+                        # print "Deleting attribute : ($lClass)($lAttrName)\n";
+                        $aInNode->removeAttribute($lAttrName);
                     }
                 }
             }

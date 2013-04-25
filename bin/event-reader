@@ -65,7 +65,8 @@ initLogging($lLogCfgFile);
 my $lSession = UcsSimple::Session->new(
     {userName => $lUname, password => $lPasswd, uri => $lUri });
 
-$lCommMgr = UcsSimple::CommMgr->new({session => $lSession, no_verify => 1 });
+$lCommMgr = UcsSimple::CommMgr->new(
+    { session => $lSession, ssl_opts => {no_verify => 1} });
 
 while (1)
 {

@@ -6,16 +6,19 @@ use warnings;
 use Carp qw(croak confess cluck);
 use UcsSimple::XmlUtil;
 use Getopt::Long;
+use UcsSimple::DomUtil;
 
 # Variables will be set in response to command line arguments.
 # (Default values provided in case arguments are not provided).
 
 my $lXmlFile = undef;
+my $lPopDn = undef;
 
 # Specify the command line options and process the command line
 my $options_okay = GetOptions (
         # Application specific options
         'xml=s'              => \$lXmlFile,   # XML file.
+        'populateDn'         => \$lPopDn,     # Populate DN fields
 
         # Standard meta-options
         'usage'                 => sub { usage(); },
@@ -34,6 +37,16 @@ else
         open my $FH, '<', $lXmlFile or die $!;
             local $/; <$FH>; 
     };
+}
+
+my $lXmlParser = XML::LibXML->new();
+my $lXmlDoc = $lXmlParser->parse_string($lXml);
+
+if ($lPopDn)
+{
+    # Effective..but, not efficient way :)
+    UcsSimple::DomUtil::populateDn($lXmlDoc, 1);
+    $lXml = $lXmlDoc->toString(1);
 }
 
 print UcsSimple::XmlUtil::prettyPrint({xmlDoc=>\$lXml});
@@ -70,6 +83,7 @@ pretty-print [options]
 =head1 OPTIONS
 
     --xml=<filename>          The xml file name.
+    --populateDn              Populate dn (for ucs mos)
     --usage                   Print a usage message.
 
 

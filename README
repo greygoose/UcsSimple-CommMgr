@@ -23,6 +23,18 @@ the "./" notation, you can do this:
   Build install
 
 
+I used cpanminus during installation to take care of my dependencies.  
+The only issues were with respect to XML::LibXML depdendencies (libxml2).
+There are accurate detailed documents on how to do this installation online.  
+In my case (debian) , I had to install the following:
+
+    apt-get install libexpat1-dev
+    apt-get install libxml2
+    apt-get install libxml2-dev
+    apt-get install zlib1g-dev
+
+
+
 =head1 SUPPORT AND DOCUMENTATION
 
 Documentation is found in POD (plain old documentation) form in each of the pm files
@@ -82,6 +94,10 @@ Log4perl is used to log messages.  You can provide a log4perl configuration file
 a command line argument for most of the applications.  If none is provided, reasonable
 defaults are used.   This includes logging to a file named "debug.log".
 
+
+=head1 CERTIFICATES
+
+The applications do not use certificates for server authentication.  Hopefully this will change soon.
 
 
 =head1 APPLICATIONS

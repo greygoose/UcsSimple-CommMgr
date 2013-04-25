@@ -26,6 +26,7 @@ Module::Build->new(
     script_files => 
     [ 
        'bin/convert-to-config',
+       'bin/count-elements',
        'bin/delete-class',
        'bin/estimate-impact',
        'bin/event-reader',

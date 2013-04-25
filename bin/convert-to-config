@@ -55,6 +55,9 @@ else
 my $lSchemaParser = UcsSimple::SchemaParser->new({schema => $lSchemaFile});
 my $lClassMeta = $lSchemaParser->getClassMeta();
 $lClassMeta->applyTypicalUcsMods();
+#print $lClassMeta->debugPrint();
+#print "\n\n\n";
+
 my $lCfgDoc = UcsSimple::DomUtil::getConfigConfMo({doc=>$lXmlDoc, classMeta=>$lClassMeta});
 
 
