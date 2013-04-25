@@ -1,0 +1,188 @@
+#!/usr/bin/perl
+
+package ElementCountHandler;
+
+use strict;
+use warnings;
+use Carp qw(croak cluck confess); 
+use base qw(XML::SAX::Base);
+use XML::Parser::PerlSAX;
+use Getopt::Long;
+
+
+my $lIndent = 0;
+my $lDebug = 0;
+my $lClassDnRef = {};
+my $lClassCountRef = {};
+
+sub printLine
+{
+	my $lIndent = shift;
+	my $line = shift;
+	for my $i (1..$lIndent)
+	{
+		print "   ";
+	}
+	print "$line\n";
+}
+
+sub new
+{
+	my ($aInClass) = @_;
+	my $self = {};
+	bless $self, $aInClass;
+	return $self;
+}
+
+sub start_document 
+{
+	my ($self, $doc) = @_;
+}
+
+sub end_document 
+{
+	my ($self, $doc) = @_;
+}
+
+sub start_element
+{
+	my ($self, $el) = @_;
+
+    my $lClass = $el->{Name};
+    $lClassCountRef->{$lClass}++;
+    if ($lDebug)
+    {
+	    printLine($lIndent, $lClass . "(" . $lClassCountRef->{$lClass}  . ")");
+    }
+
+    if (exists $el->{Attributes}->{'dn'})
+    {
+        my $lDn = $el->{Attributes}->{'dn'};
+        if (!exists $lClassDnRef->{$lClass})
+        {
+            $lClassDnRef->{$lClass} = {};
+        }
+        $lClassDnRef->{$lClass}->{$lDn} = 1;
+    }
+}
+
+sub end_element
+{
+	my ($self, $el) = @_;
+}
+
+
+# Print usage message.
+sub usage
+{
+    print "For usage information:\n";
+    print "\n\tperldoc count-elements\n\n";
+    exit;
+}
+
+
+
+my $lXmlFile = undef;
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+    # Application specific options
+    'xml=s'              => \$lXmlFile,   # XML file.
+
+    # Standard meta-options
+    'usage'                 => sub { usage(); },
+);
+
+usage() if !$options_okay;
+
+my $lXml = "";
+if (!defined($lXmlFile))
+{
+    $lXml = do { local $/; <STDIN>; }
+}
+else
+{
+    $lXml = do {
+        open my $FH, '<', $lXmlFile or die $!;
+            local $/; <$FH>;
+    };
+}
+
+my $my_handler = ElementCountHandler->new();
+
+XML::Parser::PerlSAX->new->parse( 
+    Source => { String => $lXml },
+    Handler => $my_handler
+);
+
+
+
+my $lTotal=0;
+my $lTotalDns=0;
+foreach my $lClass (sort keys %{$lClassCountRef})
+{
+    my $lDnCount = keys %{$lClassDnRef->{$lClass}};
+    my $lCount   = $lClassCountRef->{$lClass};
+    print "$lClass (elements=$lCount)(dns=$lDnCount)\n";
+
+    foreach my $lDn (keys %{$lClassDnRef->{$lClass}})
+    {
+        print "\t$lDn\n";
+    }
+    $lTotal += $lCount;
+    $lTotalDns += $lDnCount;
+}
+
+
+
+print "Total elements:$lTotal\n"; 
+print "Total dns :$lTotalDns\n"; 
+
+
+
+
+__END__
+
+
+=head1 NAME
+
+count-elements - summarize elements and dns of xml document
+
+=head1 USAGE
+
+count-elements [options]
+
+    count-elements --xml=response.xml
+
+    cat response.xml >> count-elements 
+
+    cat response.xml | pretty-print --populateDn |  count-elements 
+
+=head1 OPTIONS
+
+    --xml=<filename>          The xml file name.
+    --usage                   Print a usage message.
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc count-elements
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+
+
