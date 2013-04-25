@@ -1,0 +1,216 @@
+UcsSimple-CommMgr
+
+=head1 NAME
+
+This package contains a number of modules that are useful for integrating with Cisco UCS.
+There are also a number of primitive programs to kick-start a UCS integration project.
+
+=head1 INSTALLATION
+
+To install this module, run the following commands:
+
+        perl Build.PL
+        ./Build
+        ./Build test
+        ./Build install
+
+Or if you're on a platform (like DOS or Windows) that doesn't require
+the "./" notation, you can do this:
+
+  perl Build.PL
+  Build
+  Build test
+  Build install
+
+
+=head1 SUPPORT AND DOCUMENTATION
+
+Documentation is found in POD (plain old documentation) form in each of the pm files
+and each of the programs.  After installing, you can get documentation for each of
+the modules as follows:
+
+    perldoc UcsSimple::CommMgr
+    perldoc ClassMeta.pm
+    perldoc CommMgr.pm
+    perldoc DomUtil.pm
+    perldoc EventUtil.pm
+    perldoc SchemaParser.pm
+    perldoc Session.pm
+    perldoc Util.pm
+    perldoc XmlUtil.pm
+
+You can get documentation for each of the programs as follows:
+
+    perldoc convert-to-config
+    perldoc estimate-impact
+    perldoc find-dependencies
+    perldoc post
+    perldoc resolve-class
+    perldoc resolve-dn
+    perldoc ucs-diff
+    perldoc delete-class
+    perldoc event-reader
+    perldoc meta-gen
+    perldoc pretty-print
+    perldoc resolve-classes
+    perldoc scope
+    perldoc xml-to-html
+
+
+=head1 CONFIGURATION FILE
+
+Most of the applications allow a configuration file to be passed as an argument.
+The configuration file is used to store UCS connection information.
+The uri, uname, passwd and log4perl command line options can be read from it.
+Example configuration file:
+
+    [UCS]
+    URI     = http://ucs-vip/nuova
+    UNAME = admin
+    PASSWORD = Nbv12345
+
+    [APP]
+    LOG4PERL = ./config/log.conf
+
+(Please note the lack of security in storing credentials in a configuration file).
+
+
+
+=head1 LOG4PERL 
+
+Log4perl is used to log messages.  You can provide a log4perl configuration file as 
+a command line argument for most of the applications.  If none is provided, reasonable
+defaults are used.   This includes logging to a file named "debug.log".
+
+
+
+=head1 APPLICATIONS
+
+
+=head2 PRIMITIVE APPS
+
+There are application scripts for a number of UCS primitive methods.  
+These are listed below:
+
+    estimate-impact 
+    find-dependencies 
+    post
+    resolve-dn
+    resolve-class
+    resolve-classes 
+    scope
+
+
+
+=head2 OTHER APPS
+
+    delete-class
+    event-reader
+    ucs-diff
+    meta-gen
+    convert-to-config
+
+
+
+=head2 UTILITY APPS
+
+There are several useful xml based utilities.  More useful than novel
+
+    pretty-print 
+    xml-to-html   - convert xml to html so you can view in browser.
+
+
+
+=head1 EXAMPLES
+
+Below, are some examples that you can cut and paste.  
+
+
+=head2 Get all instances of a given managed object (eg. computeBlade).
+
+    perl resolve-class --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --pretty
+
+
+=head2 Get a named managed object and all its children (eg. computeBlade)
+
+    resolve-dn --cfg=./config/demo.conf --dn=org-root uri=https://ucs-vip-ip/nuova --hier --pretty
+
+
+=head2 Get all instances of named class (ls-server) in subtree under a named managed object (org-root/org-hr):
+
+    scope --cfg=./config/demo.conf --dn=org-root/org-hr --class=lsServer --uri=https://ucs-vip-ip/nuova --pretty
+
+
+=head2 Get all instances of a list of classes (read from standard input):
+
+    cat class-list.txt | resolve-classes --cfg=./config/demo.conf uri=https://ucs-vip-ip/nuova --hier --pretty
+
+
+=head2 Subscribe to UCS event channel:
+
+    event-reader --cfg=./config/demo.conf 
+
+
+=head2 Delete all lsServer instances.  You will be prompted for each deletion (only single UCS operation to do bulk delete).
+
+    delete-class --cfg=./config/demo.conf --class=lsServer --prompt=each
+
+
+=head2 Find the managed objects that depend on a policy/pool:
+
+    find-dependencies --cfg=./config/demo.conf --dn=org-root/mac-pool-default
+
+
+=head2 Show the impact of a UCS configuration operation with-out applying.
+
+    find-dependencies --cfg=./config/demo.conf --xml=delete-policy.xml
+
+
+=head2 Pretty print any xml document:
+
+    pretty-print --xml=response.xml
+
+
+=head2 Convert xml documentation to html (for browser viewing)
+
+    xml-to-html --xml=response.xml
+
+
+=head2 Compare the results of two xml queries: 
+
+    ucs-diff --xml=resolveDn1.xml --xml=resolveDn2.xml
+
+
+=head2 Create a perl module with meta-data based on schema:
+
+    meta-gen  --schema=UCSM-IN.xsd --package test::UcsMeta-2.1a
+
+
+=head2 Convert a ucs response (from a resolve dn query for example) to a configuration operation:
+
+    convert-to-config --xml=response.xml --schema=UCSM-IN.xsd
+
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc convert-to-config
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+
+
