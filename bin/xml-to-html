@@ -1,0 +1,270 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use XML::Parser;
+use Getopt::Long;
+
+my $lXmlFile = undef;
+our $lCData;
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+        # Application specific options
+        'xml=s'    => \$lXmlFile,      # The xml to convert
+
+        # Standard meta-options
+        'usage'    => sub { usage(); },
+);
+
+usage() if !$options_okay;
+my $lParser = new XML::Parser(
+    Handlers => {
+        XMLDecl    => \&xmlDeclCb,
+        Doctype    => \&docTypeCb,
+        Init       => \&initCb,
+        Start      => \&startCb,
+        End        => \&endCb,
+        Comment    => \&commentCb,
+        CdataStart => \&cDataStartCb,
+        CdataEnd   => \&cDataEndCb,
+        Char       => \&charCb,
+        Final      => \&finalCb,
+        Proc       => \&procCb,
+});
+
+
+# Grab the xml to convert
+if ($lXmlFile)
+{ 
+    $lParser->parsefile($lXmlFile);
+}
+else          
+{     
+    $lParser->parse( \*STDIN);     
+}
+
+
+sub initCb  
+{ 
+    my $lCssStyle = &getCssStyle();
+    print '<html>';
+    print '<head>';
+    print '<title></title>';
+    print qq'<style type="text/css">$lCssStyle</style>';
+    print '</head>';
+    print '</body>';
+}
+
+
+
+sub finalCb 
+{ 
+    print '</body>';
+    print '</html>';
+}
+
+
+
+sub xmlDeclCb 
+{
+    my ($aInExpat, $aInVersion, $aInEncoding, $aInStandalone) = @_;
+    print qq'<p><span class="xmldecl">&lt;?xml version="$aInVersion" encoding="$aInEncoding" ';
+    print qq'standalone="' .( $aInStandalone ?  'yes' : 'no') . '"?&gt;</span></p>';
+}
+
+
+
+sub startCb 
+{
+    my ($aInExpat, $aInEl, %aInAttrs) = @_;
+
+    print("<ul>");
+    print(qq'&lt;<span class="element">$aInEl</span>');
+    foreach my $lAttrName ( sort keys %aInAttrs ) 
+    {
+        print qq' <span class="attrname">$lAttrName=</span>';
+        print qq'<span class="attrvalue">"$aInAttrs{$lAttrName}"</span>';
+    }
+    print '&gt;';
+}
+
+
+
+sub endCb 
+{
+    my ($aInExpat, $aInEl) = @_;
+    print qq'&lt;/<span class="element">$aInEl</span>&gt;';
+    print '</ul>';
+}
+
+
+
+sub charCb 
+{
+    my ($aInExpat, $aInString) = @_;
+    $aInString =~ s/\s+/ /g;
+
+    if ($lCData)
+    {
+        $aInString =~ s/&/&amp;/gs;
+        $aInString =~ s/</&lt;/gs;
+        $aInString =~ s/>/&gt;/gs;
+        $aInString =~ s/"/&quot;/gs;
+    }    
+    print "$aInString";
+}
+
+
+
+sub procCb 
+{
+    my ($aInExpat, $aInTarget, $aInData) = @_;
+    print '<ul>';
+    print qq'&lt;<span class="proc">?$aInTarget</b> $aInData<b>?</b>&gt;';
+    print "</span>";
+    print "</ul>";
+}
+
+
+
+sub commentCb 
+{
+    my ($aInExpat, $aInData) = @_;
+    print '<ul>';
+    print '<span class="comment">';
+    print qq'&lt!-- $aInData --&gt;';
+    print '</span>';
+    print '</ul>';
+}
+
+
+
+sub cDataStartCb 
+{ 
+    my ($aInExpat) = @_;
+    print '<ul>&lt;![CDATA[<span class="cdata">'; $lCData++ 
+}
+
+
+
+sub cDataEndCb   
+{ 
+    my ($aInExpat) = @_;
+    print '</span>]]&gt;</ul>'; $lCData-- 
+}
+
+
+
+sub docTypeCb 
+{
+    my ($aInExpat, $aInName, $aInSysId, $aInPubId, $aInInternal) = @_;
+    print '<span class="doctype">';
+    print qq'&lt;!DOCTYPE $aInName PUBLIC "$aInPubId" $aInInternal "$aInSysId" &gt;';
+    print '</span>';
+}
+
+
+
+sub getCssStyle
+{
+
+my $lCssStyle = <<END_DOC;
+.element {
+    font-weight: bold;
+    color: red;
+}
+
+.attrname {
+    font-weight: bold;
+    font-style: italic;
+    color: green;
+}
+
+.attrvalue {
+    font-style: italic;
+    color: green;
+}
+
+.comment {
+    color: blue;
+}
+
+.proc {
+    color: green;
+    font-weight: bold;
+}
+
+.cdata {
+    color: violet;
+}
+
+.doctype {
+    font-weight: bold;
+    color: brown;
+}
+
+
+.xmldecl {
+    font-weight: bold;
+}
+
+END_DOC
+
+return $lCssStyle;
+}
+
+
+# Print usage message.
+sub usage 
+{
+    print "For usage information:\n";
+    print "\n\txml-to-html\n\n";
+    exit;
+}
+
+
+__END__
+
+
+=head1 NAME
+
+xml-to-html - simple and handy script that converts xml to html.
+
+=head1 USAGE
+
+xml-to-html [options]
+
+    xml-to-html --xmlFile=response.xml
+
+    cat response.xml | XmlToHtml 
+
+
+=head1 OPTIONS
+
+    --xmlFile=<filename>    File to convert.
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc xml-to-html
+
+You can also look for information at:
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+

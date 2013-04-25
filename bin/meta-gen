@@ -1,0 +1,246 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Exporter;
+use Getopt::Long;
+use Carp qw(croak cluck confess);
+use Log::Log4perl qw (get_logger); 
+
+my $lSchemaFile = undef;
+my $lXmlFile = undef;
+my $lRetCode = 1;
+my $lPackage = undef;
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+        # Application specific options
+        'schema=s'          => \$lSchemaFile,   # XML Schema file.
+        'pkg=s'             => \$lPackage,      # Perl package name.
+
+        # Standard meta-options
+        'usage'             => sub { usage(); },
+);
+
+usage() if !$options_okay;
+usage() if (!$lPackage) || (!$lSchemaFile);
+
+my $parser = XML::LibXML->new();
+   
+my $lClassArgRef = {};
+my $lNonCfgClassMapRef = {};
+
+my $lDoc = $parser->parse_file($lSchemaFile);
+UcsSimple::SchemaParser::getCfgMoAttr($lDoc, $lClassArgRef, $lNonCfgClassMapRef);
+
+genMeta($lPackage, $lClassArgRef, $lNonCfgClassMapRef);
+
+
+
+sub getIndent
+{
+    my $aInNum = shift;
+    return ' ' x $aInNum;
+}
+
+
+
+sub println 
+{
+	my ($aInArg1, $aInTxt) = @_;
+
+    if (!defined($aInTxt))
+	{
+        if (defined($aInArg1))
+		{
+    	    print $aInArg1;
+		}
+	}
+    else
+    {
+    	print getIndent($aInArg1);
+        print $aInTxt;
+    }
+    print "\n";
+}
+
+
+
+sub genMeta
+{
+    my ($aInPackageName, $aInClassArgRef, $aInNonCfgClassMapRef) = @_;
+
+    my $lIndent = 4;
+    println( "package " . $aInPackageName . ";" );
+    println( );
+    println( 'use strict;' );
+    println( 'use warnings;' );
+    println( );
+    println( '@ISA = qw( Exporter );' );
+    println( '@EXPORT_OK = qw( getAttr isConfigClass isConfigAttr isUcsClass );' );
+    println( );
+    println( '# Created by code generating robots' );
+    println( );
+
+    # print each node in the list
+    println( 'our $lAttrMapRef = ' );
+    println( '{' );
+    foreach my $lClass (keys %{$aInClassArgRef})
+    {
+        my $lAttrArray = $aInClassArgRef->{$lClass};
+        if (defined($lAttrArray)) 
+        {
+            println( $lIndent, "\"" . $lClass . "\" =>" );
+            println( $lIndent, '{' );
+            foreach my $lAttr (@{$lAttrArray})
+	    {
+                println( $lIndent+4, "\"" . $lAttr . "\"" .  " => 1," );
+            }
+            println( $lIndent, '},' );
+        }
+    }
+    println( '};' );
+    println( );
+
+    # print each node in the list
+    println( 'our $lNonCfgClassMapRef = ' );
+    println( '{' );
+    foreach my $lClass (keys %{$aInNonCfgClassMapRef})
+    {
+        my $lAttrArray = $aInClassArgRef->{$lClass};
+        if (!defined($lAttrArray)) 
+        {
+            println( $lIndent, "\"" . $lClass . "\"" . " => " . "1" .  "," );
+        }
+    }
+    println( '};' );
+    println( );
+    println( 'sub getUcsClasses' );
+    println( '{' );
+    println( $lIndent, 'my $lClasses = {};' );
+    println( $lIndent, 'foreach my $lKey (keys %{$lAttrMapRef}, keys %{$lNonCfgClassMapRef})' );
+    println( $lIndent, '{' );
+    println( $lIndent+4, '$lClasses->{$lKey} = 1;' );
+    println( $lIndent, '}' );
+    println( $lIndent, 'return $lClasses;' );
+    println( '} ' );
+    println( );
+    println( 'sub getConfigClasses' );
+    println( '{' );
+    println( $lIndent, 'return $lAttrMapRef;' );
+    println( '}' );
+    println( );
+    println( 'sub getNonConfigClasses');
+    println( '{' );
+    println( $lIndent, 'return $lNonCfgClassMapRef;' );
+    println( '}' );
+    println( );
+    println( 'sub getConfigAttrs' );
+    println( '{' );
+    println( $lIndent, 'my ($aInClass) = @_;' );
+    println( $lIndent, 'my $lAttr = undef;' );
+    println( $lIndent, 'if (!defined($aInClass))' );
+    println( $lIndent, '{' );
+    println( $lIndent+4, 'return $lAttrMapRef;' );
+    println( $lIndent, '}' );
+    println( $lIndent, 'if (exists $lAttrMapRef->{$aInClass})' );
+    println( $lIndent, '{' );
+    println( $lIndent+4, '$lAttr = $lAttrMapRef->{$aInClass};' );
+    println( $lIndent, '}' );
+    println( $lIndent, 'return $lAttr;' );
+    println(  '}' );
+    println( );
+    println( 'sub isUcsClass' );
+    println( '{' );
+    println( $lIndent, 'my ($aInClass) = @_;' );
+    println( $lIndent, 'return ((exists $lAttrMapRef->{$aInClass}) || ' );
+    println( $lIndent, '       (exists $lNonCfgClassMapRef->{$aInClass}));' );
+    println( '} ' );
+    println( );
+    println( 'sub isConfigClass' );
+    println( '{' );
+    println( $lIndent, 'my ($aInClass) = @_;' );
+    println( $lIndent, 'return (exists $lAttrMapRef->{$aInClass});' );
+    println( '}' );
+    println( );
+    println( 'sub isConfigAttr' );
+    println( '{' );
+    println( $lIndent, 'my ($aInClass, $aInAttr) = @_;' );
+    println( $lIndent, 'my $lResult = 0;' );
+    println( $lIndent, 'if (isConfigClass($aInClass))' );
+    println( $lIndent, '{' );
+    println( $lIndent+4, '$lResult = (exists $lAttrMapRef->{$aInClass}->{$aInAttr});' );
+    println( $lIndent, '}' );
+    println( $lIndent, 'return $lResult;' );
+    println( '}' );
+    println( );
+    println( '1;');
+
+}
+
+
+
+# Print usage message.
+sub usage
+{
+    print "For usage information:\n";
+    print "\n\tperldoc meta-gen\n\n";
+    exit;
+}
+
+
+
+1; 
+
+
+
+=head1 NAME
+
+meta-gen - generate a perl module that provides access to meta-data. 
+The meta data is extracted from a UCS (UCSM or C-series) schema file.
+
+=head1 USAGE
+
+meta-gen [options]
+
+    meta-gen  --schema=UCSM-IN.xsd --package test::UcsMeta-2.1a
+
+
+=head1 REQUIRED ARGUMENTS
+
+    --schema=<filename>       The schema to generate meta data from.
+    --package=<pkg>           Generated perl package name
+
+
+=head1 OPTIONS
+
+    --usage                   Print a usage message.
+
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc meta-gen
+
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+
+=cut
+
+
+

@@ -1,0 +1,127 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+use Getopt::Long;
+use Carp qw(croak cluck confess);
+use XML::LibXML;
+
+use UcsSimple::SchemaParser;
+use UcsSimple::XmlUtil;
+use UcsSimple::DomUtil;
+
+use constant ELEMENT_NODE => 1;
+use constant DOCUMENT_NODE => 9;
+
+# Variables will be set in response to command line arguments.
+my $lXmlFile = undef;
+my $lSchemaFile = undef;
+my $lPretty = undef;
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+    # Application specific options
+    'xml=s'                 => \$lXmlFile,      # XML file
+    'schema=s'              => \$lSchemaFile,   # Schema file
+    'pretty'                => \$lPretty,       # Pretty print xml
+
+    # Standard meta-options
+    'usage'                 => sub { usage(); },
+);
+
+usage() if !$options_okay;
+
+my $lDoc= undef;
+if (!defined($lSchemaFile))
+{
+    usage();    
+}
+
+# Grab xml from file or stdin
+my $lXmlParser = XML::LibXML->new();
+my $lXmlDoc;
+if (!defined($lXmlFile))
+{
+    my $lXml = do { local $/; <STDIN>; };
+    $lXmlDoc = $lXmlParser->parse_string($lXml);
+}
+else
+{
+    $lXmlDoc = $lXmlParser->parse_file($lXmlFile);
+}
+
+my $lSchemaParser = UcsSimple::SchemaParser->new({schema => $lSchemaFile});
+my $lClassMeta = $lSchemaParser->getClassMeta();
+$lClassMeta->applyTypicalUcsMods();
+my $lCfgDoc = UcsSimple::DomUtil::getConfigConfMo({doc=>$lXmlDoc, classMeta=>$lClassMeta});
+
+
+if ($lPretty)
+{
+    my $lXml = $lCfgDoc->toString(); 
+    print UcsSimple::XmlUtil::prettyPrint({xmlDoc=>\$lXml});
+}
+else
+{
+    print  $lCfgDoc->toString(); 
+}
+
+
+# Print usage message.
+sub usage
+{
+    print "For usage information:\n";
+    print "\n\tperldoc convert-to-config\n\n";
+    exit;
+}
+
+
+__END__
+
+
+
+=head1 NAME
+
+convert-to-config - convert a ucs query response to a configuration operation.
+
+=head1 USAGE
+
+pretty-print [options]
+
+    convert-to-config --xml=response.xml --schema=UCSM-IN.xsd
+
+    cat response.xml >> convert-to-config --schema=UCSM-IN.xsd
+
+
+=head1 OPTIONS
+
+    --xml=<filename>          The xml file name.
+    --schema=<filename>       The xml schema file name.
+    --usage                   Print a usage message.
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc convert-to-config
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+
+
+

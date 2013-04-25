@@ -1,0 +1,95 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Carp qw(croak confess cluck);
+use UcsSimple::XmlUtil;
+use Getopt::Long;
+
+# Variables will be set in response to command line arguments.
+# (Default values provided in case arguments are not provided).
+
+my $lXmlFile = undef;
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+        # Application specific options
+        'xml=s'              => \$lXmlFile,   # XML file.
+
+        # Standard meta-options
+        'usage'                 => sub { usage(); },
+);
+
+usage() if !$options_okay;
+
+my $lXml = "";
+if (!defined($lXmlFile))
+{
+    $lXml = do { local $/; <STDIN>; }
+}
+else
+{
+    $lXml = do {
+        open my $FH, '<', $lXmlFile or die $!;
+            local $/; <$FH>; 
+    };
+}
+
+print UcsSimple::XmlUtil::prettyPrint({xmlDoc=>\$lXml});
+
+
+
+# Print usage message.
+sub usage 
+{
+    print "For usage information:\n";
+    print "\n\tpretty-print\n\n";
+    exit;
+}
+
+
+
+__END__
+
+
+
+=head1 NAME
+
+pretty-print - pretty print xml from file or standard input.
+
+=head1 USAGE
+
+pretty-print [options]
+
+    pretty-print --xml=response.xml
+
+    cat response.xml >> pretty-print 
+
+
+=head1 OPTIONS
+
+    --xml=<filename>          The xml file name.
+    --usage                   Print a usage message.
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc pretty-print
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+

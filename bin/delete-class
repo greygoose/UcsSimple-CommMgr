@@ -1,0 +1,346 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Getopt::Long;
+use Carp qw(croak cluck confess);
+use Log::Log4perl qw (get_logger);
+use Config::Std;
+
+use UcsSimple::XmlUtil;
+use UcsSimple::Session;
+use UcsSimple::CommMgr;
+
+# Signal handler (assure 1 logout per login)
+$SIG{'INT'} = \&sigIntHandler;
+
+my $lDebug= undef;
+my $lUname = "admin";
+my $lUri = undef;
+my $lPasswd = undef;
+my $lPretty= undef;
+my $lClass = undef;
+my $lConfirm = "once";
+my $lCfgFile = undef;
+my $lLogCfgFile = undef;
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+        # Application specific options
+        'uri=s'         => \$lUri,          # Server uri
+        'class=s'       => \$lClass,  	    # Class to delete	
+        'uname=s'       => \$lUname,        # User name.
+        'passwd=s'      => \$lPasswd,       # Password.
+        'log4perl=s'    => \$lLogCfgFile,   # log4perl configuration file
+        'cfg=s'         => \$lCfgFile,      # a cfg file with application settings.
+        'confirm=s'     => \$lConfirm,      # Confirm deletion
+        'pretty'	=> \$lPretty,       # Pretty print response.
+        'debug'	        => \$lDebug,        # Print debug information
+
+        # Standard meta-options
+        'usage'         => sub { usage(); },
+);
+
+
+usage() if !$options_okay;
+
+if (defined($lCfgFile))
+{
+    read_config $lCfgFile => my %lConfig;
+
+    # Command line arguments take precendence.
+    # Next, we read from a configuration file.
+    $lUri = $lConfig{'UCS'}{'URI'} if (!$lUri);
+    $lUname = $lConfig{'UCS'}{'UNAME'} if (!$lUname);
+    $lPasswd = $lConfig{'UCS'}{'PASSWORD'} if (!$lPasswd);
+    $lLogCfgFile = $lConfig{'APP'}{'LOG4PERL'} if (!$lLogCfgFile);
+}
+
+
+if (($lConfirm ne "each") && ($lConfirm ne "none"))
+{
+    $lConfirm = "once";
+}
+
+usage() if ((!$lUname) || (!$lPasswd) || (!$lUri) || (!$lClass));
+
+initLogging($lLogCfgFile);
+
+# Create session and communication manager
+my $lSession = UcsSimple::Session->new(
+    {userName => $lUname, password => $lPasswd, uri => $lUri });
+
+my $lCommMgr = UcsSimple::CommMgr->new({session => $lSession});
+
+my $lCookie = $lCommMgr->doLogin();
+croak "Failed to get cookie" if (!defined $lCookie);
+
+my ($lSuccess, $lXmlResp, $lErrHashRef) =
+    $lCommMgr->resolveClass({ class => $lClass, hier => 0 });
+
+if ($lSuccess)
+{
+    # Grab list of dns from response 
+    my $lParser = XML::LibXML->new();
+    my $lRespDoc = $lParser->parse_string($lXmlResp);
+    my $lRoot = $lRespDoc->getDocumentElement;
+    my $lDnList = getDnList($lRespDoc, $lClass, ($lConfirm eq "each"));
+    if (scalar @{$lDnList})
+    {
+        my $lDelOk = 1;
+        if ($lConfirm ne "none")
+        {
+            print "Okay to delete the following dns: \n";
+            foreach my $lDn (@{$lDnList}) 
+            {
+                print "\t" . $lDn . "\n";
+            }
+
+            my $lOk = UcsSimple::Util::promptUser(qq/Okay to delete? /, 0, "y");
+            if ($lOk ne "y")
+            {
+                $lDelOk = 0;
+            }
+        }
+
+        if ($lDelOk) 
+        {
+            my $lDelXml = UcsSimple::XmlUtil::getDeleteManyXml(
+                {cookie=>$lCookie, dnArray => $lDnList, class => $lClass });
+
+            ($lSuccess, $lXmlResp, $lErrHashRef) =
+                $lCommMgr->doPostXML({postData => $lDelXml});
+
+            my $lStream = $lSuccess ? *STDOUT : *STDERR;
+            UcsSimple::XmlUtil::printResponse(
+            {
+                success => $lSuccess, xmlDoc => \$lXmlResp,
+                pretty => $lPretty, stream => $lStream, errorHash => $lErrHashRef,
+            });
+        }
+        else
+        {
+            print "Nothing to delete\n";
+        }
+    }
+    else
+    {
+        print "Nothing to delete\n";
+    }
+}
+
+
+$lCommMgr->doLogout();
+my $lRetCode = $lSuccess ? 0 : 1;
+exit $lRetCode;
+
+
+
+# Print usage message.
+sub usage 
+{
+    print "For usage information:\n";
+    print "\n\tdelete-class\n\n";
+    exit;
+}
+
+
+
+# Just hacked out to prevent unallowed deletions like org-root
+# Could add a meta check (if the MO is configurable)
+sub isDeletable
+{
+    my ($aInClass, $aInDn) = @_;
+
+    my $lDeletable = 0;
+    if  ($lClass eq "orgOrg")
+    { 
+        if ($aInDn ne "org-root")
+        {
+            $lDeletable = 1;
+        }
+    }
+    elsif ($lClass eq "fabricVlan")
+    {
+        # Do not delete any vlan named "default"
+        # Only delete vlans under 'fabric/lan', 'fabric/lan/A' and 'fabric/lan/B'
+        if ($aInDn !~ /net-default$/)
+        {
+            $lDeletable = 1;
+        }
+    }
+    else 
+    {
+            $lDeletable = 1;
+    }
+    return $lDeletable;
+}
+
+
+
+sub getDnList
+{
+    my ($aInDoc, $aInClass, $aInPrompt) = @_;
+
+    my $lDnList = [];
+    my @lElements = $aInDoc->getElementsByTagName($lClass);
+    foreach my $lElement (@lElements)
+    {
+        my $lDn = $lElement->getAttribute('dn');
+        if (isDeletable($lClass, $lDn))
+        {
+            if ($aInPrompt)
+            {
+                my $lOk = UcsSimple::Util::promptUser(qq/Okay to delete: ($lDn) /, 0, "y");
+                if ($lOk eq 'y')
+                {
+                    push @{$lDnList}, $lDn;
+                }
+            }
+            else
+            {
+                push @{$lDnList}, $lDn;
+            }
+        }
+    }
+    return $lDnList;
+}
+
+
+
+sub cleanupAndExit
+{
+    my ($lUri, $lCookie, $lMsg, $lDebug) = @_;
+    print "Logging out\n";
+    UcsSimple::XmlUtil::doLogout($lUri, $lCookie, $lDebug);
+    print "$lMsg\n";
+    exit;
+}
+
+
+
+sub initLogging
+{
+    my ($aInLogCfgFile) = @_;
+
+    if (defined($aInLogCfgFile))
+    {
+        Log::Log4perl::init_and_watch($aInLogCfgFile, 5);
+        get_logger(__PACKAGE__)->debug(
+            "Log configuration file: $aInLogCfgFile");
+    }
+    else
+    {
+        my $lConf = q(
+            log4perl.category = DEBUG, Logfile
+            log4perl.appender.Logfile          = Log::Log4perl::Appender::File
+            log4perl.appender.Logfile.filename = debug.log
+            log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
+            log4perl.appender.Logfile.layout.ConversionPattern = [%p][%d][%F:%L] %m%n
+            log4perl.appender.Logfile.mode     = write
+            log4perl.appender.Logfile.main     = DEBUG
+        );
+        Log::Log4perl::init(\$lConf);
+        get_logger(__PACKAGE__)->debug(
+            "No log configuration file -using reasonable defaults");
+    }
+}
+
+
+
+sub sigIntHandler
+{
+    get_logger(__PACKAGE__)->warn(
+         "Caught signal - cleaning up");
+
+    print "Caught signal - will cleanup and exit \n";
+    $lCommMgr->doLogout();
+
+    get_logger(__PACKAGE__)->warn(
+         "Terminated by signal");
+
+    print "Terminated by signal\n";
+    exit 1;
+}
+
+
+__END__
+
+=head1 NAME
+
+delete-class - a simple script calls a UCS system and deletes identified managed objects.
+
+
+=head1 USAGE
+
+delete-class [options]
+
+    delete-class --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=once
+
+    delete-class --cfg=./config/demo.conf --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=each
+
+
+=head1 REQUIRED ARGUMENTS
+
+    --class=<ucl-class>	    The UCS managed object class to delete.
+    --uri=<ucs-vip>	    The UCS VIP uri.
+    --uname=<ucs-user>	    The UCS user name.
+    --passwd=<ucs-pass>	    The UCS password.
+
+UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
+
+=head1 OPTIONS
+
+    --cfg=<config-file>     Specify a configuration file. 
+    --log4perl=<log-cfg>    The log4perl config file.
+    --confirm=<option> 	    Confirm managed object deletion (once,each,none).
+    --pretty                Pretty print the UCS response.
+    --debug                 Print some debug information.        
+    --usage                 Print a usage message.
+
+
+=head1 CONFIGURATION FILE
+
+A configuration file is used to store UCS connection information.  
+The uri, uname, passwd and log4perl command line options can be read from it. 
+Example configuration file:
+
+    [UCS]
+    URI     = http://ucs-vip/nuova
+    UNAME = admin
+    PASSWORD = Nbv12345
+
+    [APP]
+    LOG4PERL = ./config/log.conf
+
+
+=head1 SEE ALSO
+
+L<LOG4PERL> for log4perl configuration file.
+L<UcsSimple::XmlUtil>
+L<UcsSimple::Session>
+L<UcsSimple::CommMgr>
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc delete-class
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+

@@ -1,0 +1,152 @@
+#!/usr/bin/perl 
+
+use strict;
+use warnings;
+
+use Getopt::Long;
+use Carp qw(croak confess cluck);
+use XML::LibXML;
+use Data::Dumper;
+
+use UcsSimple::XmlUtil;
+use UcsSimple::DomUtil;
+use UcsSimple::SchemaParser;
+
+
+my $lXmlFiles = [];
+my $lNoVals = undef;
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+        # Application specific options
+        'xml=s@'           => \$lXmlFiles,
+        'no-vals'          => \$lNoVals,
+        'usage'            => sub { usage(); },
+);
+
+usage() if !$options_okay;
+
+# Only print the listed classes
+my $lNumFiles = scalar @{$lXmlFiles};
+if (($lNumFiles > 2) ||
+    ($lNumFiles  < 1))
+{
+    usage();
+}
+
+# Grab xml from file or stdin
+my $lXmlParser = XML::LibXML->new();
+my $lXmlDocOne = $lXmlParser->parse_file($lXmlFiles->[0]);
+my $lXmlDocTwo;
+
+if ($lNumFiles == 1)
+{
+    my $lXml = do { local $/; <STDIN>; };
+    $lXmlDocTwo = $lXmlParser->parse_string($lXml);
+}
+else
+{
+    $lXmlDocTwo = $lXmlParser->parse_file($lXmlFiles->[1]);
+}
+
+UcsSimple::DomUtil::populateDn($lXmlDocOne, 1);
+UcsSimple::DomUtil::populateDn($lXmlDocTwo, 1);
+
+my $lDiffMap = {};
+
+UcsSimple::DomUtil::diffDoc($lXmlDocOne, $lXmlDocTwo, $lNoVals, $lDiffMap);
+
+print "Differences are : \n";
+my $lDiff = 0;
+foreach my $lIndex (keys %{$lDiffMap})
+{
+    my ($lClass, $lDn) = split ('\|\|', $lIndex); 
+
+    my $lFirst = 1;
+    foreach my $lProp (keys %{$lDiffMap->{$lIndex}})
+    {
+        if ($lFirst)
+        {
+            if (exists($lDiffMap->{$lIndex}->{'dn'}))
+            {
+                print qq($lDn ($lClass) [element]); 
+            }
+            else
+            {
+                print qq($lDn ($lClass) [attributes]);
+            }
+            print "\n"; 
+            $lFirst = 0;
+        }
+        print $lDiffMap->{$lIndex}->{$lProp} . "\n";
+        $lDiff = 1;
+    }
+}
+if (!$lDiff)
+{
+    print "The documents are identical\n"; 
+}
+
+
+
+# Print usage message.
+sub usage
+{
+    print "For usage information:\n";
+    print "\n\tperldoc diff-doc\n\n";
+    exit;
+}
+
+
+
+__END__
+
+
+
+=head1 NAME
+
+ucs-dn-diff - a simple and handy script to compare 2 ucs xml documents elements.  Intended 
+              use would be to compare xml documents returned by two different resolveDn queries.
+
+
+=head1 USAGE
+
+ucs-diff [options]
+    
+    ucs-diff --xml=resolveDn1.xml --xml=resolveDn2.xml
+    cat resolveDn1.xml | ucs-diff --xml=resolveDn2.xml
+
+
+=head1 REQUIRED OPTIONS
+
+    --xmlFile=<filename>    Xml files to compare (1 or 2)
+    --no-vals               Do not report differences in attribute values
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc ucs-diff
+
+You can also look for information at:
+
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+
+
+
