@@ -21,6 +21,7 @@
 	<li><a href="#support_and_documentation">SUPPORT AND DOCUMENTATION</a></li>
 	<li><a href="#configuration_file">CONFIGURATION FILE</a></li>
 	<li><a href="#log4perl">LOG4PERL</a></li>
+	<li><a href="#certificates">CERTIFICATES</a></li>
 	<li><a href="#applications">APPLICATIONS</a></li>
 	<ul>
 
@@ -32,6 +33,7 @@
 	<li><a href="#examples">EXAMPLES</a></li>
 	<ul>
 
+		<li><a href="#post_xml_method_to_ucs___for_example_to_create_a_service_profile">Post xml method to UCS - for example to create a service profile</a></li>
 		<li><a href="#get_all_instances_of_a_given_managed_object__eg__computeblade__">Get all instances of a given managed object (eg. computeBlade).</a></li>
 		<li><a href="#get_a_named_managed_object_and_all_its_children__eg__computeblade_">Get a named managed object and all its children (eg. computeBlade)</a></li>
 		<li><a href="#get_all_instances_of_named_class__ls_server__in_subtree_under_a_named_managed_object__org_root_org_hr__">Get all instances of named class (ls-server) in subtree under a named managed object (org-root/org-hr):</a></li>
@@ -78,6 +80,15 @@ the &quot;./&quot; notation, you can do this:</p>
   Build
   Build test
   Build install</pre>
+<p>I used cpanminus during installation to take care of my dependencies.  
+The only issues were with respect to XML::LibXML depdendencies (libxml2).
+There are accurate detailed documents on how to do this installation online.  
+In my case (debian) , I had to install the following:</p>
+<pre>
+    apt-get install libexpat1-dev
+    apt-get install libxml2
+    apt-get install libxml2-dev
+    apt-get install zlib1g-dev</pre>
 <p>
 </p>
 <hr />
@@ -138,6 +149,11 @@ defaults are used.   This includes logging to a file named &quot;debug.log&quot;
 <p>
 </p>
 <hr />
+<h1><a name="certificates">CERTIFICATES</a></h1>
+<p>The applications do not use certificates for server authentication.  Hopefully this will change soon.</p>
+<p>
+</p>
+<hr />
 <h1><a name="applications">APPLICATIONS</a></h1>
 <p>
 </p>
@@ -175,9 +191,14 @@ These are listed below:</p>
 <p>Below, are some examples that you can cut and paste.</p>
 <p>
 </p>
+<h2><a name="post_xml_method_to_ucs___for_example_to_create_a_service_profile">Post xml method to UCS - for example to create a service profile</a></h2>
+<pre>
+    post --cfg=./config/demo.conf --xml=createSp.xml</pre>
+<p>
+</p>
 <h2><a name="get_all_instances_of_a_given_managed_object__eg__computeblade__">Get all instances of a given managed object (eg. computeBlade).</a></h2>
 <pre>
-    perl resolve-class --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --pretty</pre>
+    resolve-class --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --pretty</pre>
 <p>
 </p>
 <h2><a name="get_a_named_managed_object_and_all_its_children__eg__computeblade_">Get a named managed object and all its children (eg. computeBlade)</a></h2>
