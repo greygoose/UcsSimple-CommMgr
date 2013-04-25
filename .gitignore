@@ -4,6 +4,7 @@
 *.tar.gz
 *.rej
 *.orig
+*.swp
 *~
 /Build
 /Build.bat
@@ -18,4 +19,3 @@
 /*.tar.gz
 /Module-Build-*
 /LICENSE
-/README
