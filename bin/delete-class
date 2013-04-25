@@ -278,7 +278,7 @@ delete-class [options]
 
     delete-class --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=once
 
-    delete-class --cfg=./config/demo.conf --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=each
+    delete-class --cfg=./config/demo.conf --class=lsServer --prompt=each
 
 
 =head1 REQUIRED ARGUMENTS

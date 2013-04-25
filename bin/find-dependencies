@@ -171,9 +171,9 @@ find-dependencies - calls a UCS system and queries policy dependencies.
 
 find-dependenices [options]
 
-    find-dependencies --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=once
+    find-dependencies --uname=admin --passwd=pass --xml=delete-policy.xml  --uri=https://ucs-vip-ip/nuova 
 
-    find-dependencies --cfg=./config/demo.conf --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=each
+    find-dependencies --cfg=./config/demo.conf --xml=delete-policy.xml
 
 
 =head1 REQUIRED ARGUMENTS

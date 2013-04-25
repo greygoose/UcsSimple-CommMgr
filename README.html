@@ -1,0 +1,263 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>README</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#installation">INSTALLATION</a></li>
+	<li><a href="#support_and_documentation">SUPPORT AND DOCUMENTATION</a></li>
+	<li><a href="#configuration_file">CONFIGURATION FILE</a></li>
+	<li><a href="#log4perl">LOG4PERL</a></li>
+	<li><a href="#applications">APPLICATIONS</a></li>
+	<ul>
+
+		<li><a href="#primitive_apps">PRIMITIVE APPS</a></li>
+		<li><a href="#other_apps">OTHER APPS</a></li>
+		<li><a href="#utility_apps">UTILITY APPS</a></li>
+	</ul>
+
+	<li><a href="#examples">EXAMPLES</a></li>
+	<ul>
+
+		<li><a href="#get_all_instances_of_a_given_managed_object__eg__computeblade__">Get all instances of a given managed object (eg. computeBlade).</a></li>
+		<li><a href="#get_a_named_managed_object_and_all_its_children__eg__computeblade_">Get a named managed object and all its children (eg. computeBlade)</a></li>
+		<li><a href="#get_all_instances_of_named_class__ls_server__in_subtree_under_a_named_managed_object__org_root_org_hr__">Get all instances of named class (ls-server) in subtree under a named managed object (org-root/org-hr):</a></li>
+		<li><a href="#get_all_instances_of_a_list_of_classes__read_from_standard_input__">Get all instances of a list of classes (read from standard input):</a></li>
+		<li><a href="#subscribe_to_ucs_event_channel_">Subscribe to UCS event channel:</a></li>
+		<li><a href="#delete_all_lsserver_instances__you_will_be_prompted_for_each_deletion__only_single_ucs_operation_to_do_bulk_delete__">Delete all lsServer instances.  You will be prompted for each deletion (only single UCS operation to do bulk delete).</a></li>
+		<li><a href="#find_the_managed_objects_that_depend_on_a_policy_pool_">Find the managed objects that depend on a policy/pool:</a></li>
+		<li><a href="#show_the_impact_of_a_ucs_configuration_operation_with_out_applying_">Show the impact of a UCS configuration operation with-out applying.</a></li>
+		<li><a href="#pretty_print_any_xml_document_">Pretty print any xml document:</a></li>
+		<li><a href="#convert_xml_documentation_to_html__for_browser_viewing_">Convert xml documentation to html (for browser viewing)</a></li>
+		<li><a href="#compare_the_results_of_two_xml_queries_">Compare the results of two xml queries:</a></li>
+		<li><a href="#create_a_perl_module_with_meta_data_based_on_schema_">Create a perl module with meta-data based on schema:</a></li>
+		<li><a href="#convert_a_ucs_response__from_a_resolve_dn_query_for_example__to_a_configuration_operation_">Convert a ucs response (from a resolve dn query for example) to a configuration operation:</a></li>
+	</ul>
+
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#support">SUPPORT</a></li>
+	<li><a href="#license_and_copyright">LICENSE AND COPYRIGHT</a></li>
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>This package contains a number of modules that are useful for integrating with Cisco UCS.
+There are also a number of primitive programs to kick-start a UCS integration project.</p>
+<p>
+</p>
+<hr />
+<h1><a name="installation">INSTALLATION</a></h1>
+<p>To install this module, run the following commands:</p>
+<pre>
+        perl Build.PL
+        ./Build
+        ./Build test
+        ./Build install</pre>
+<p>Or if you're on a platform (like DOS or Windows) that doesn't require
+the &quot;./&quot; notation, you can do this:</p>
+<pre>
+  perl Build.PL
+  Build
+  Build test
+  Build install</pre>
+<p>
+</p>
+<hr />
+<h1><a name="support_and_documentation">SUPPORT AND DOCUMENTATION</a></h1>
+<p>Documentation is found in POD (plain old documentation) form in each of the pm files
+and each of the programs.  After installing, you can get documentation for each of
+the modules as follows:</p>
+<pre>
+    perldoc UcsSimple::CommMgr
+    perldoc ClassMeta.pm
+    perldoc CommMgr.pm
+    perldoc DomUtil.pm
+    perldoc EventUtil.pm
+    perldoc SchemaParser.pm
+    perldoc Session.pm
+    perldoc Util.pm
+    perldoc XmlUtil.pm</pre>
+<p>You can get documentation for each of the programs as follows:</p>
+<pre>
+    perldoc convert-to-config
+    perldoc estimate-impact
+    perldoc find-dependencies
+    perldoc post
+    perldoc resolve-class
+    perldoc resolve-dn
+    perldoc ucs-diff
+    perldoc delete-class
+    perldoc event-reader
+    perldoc meta-gen
+    perldoc pretty-print
+    perldoc resolve-classes
+    perldoc scope
+    perldoc xml-to-html</pre>
+<p>
+</p>
+<hr />
+<h1><a name="configuration_file">CONFIGURATION FILE</a></h1>
+<p>Most of the applications allow a configuration file to be passed as an argument.
+The configuration file is used to store UCS connection information.
+The uri, uname, passwd and log4perl command line options can be read from it.
+Example configuration file:</p>
+<pre>
+    [UCS]
+    URI     = <a href="http://ucs-vip/nuova">http://ucs-vip/nuova</a>
+    UNAME = admin
+    PASSWORD = Nbv12345</pre>
+<pre>
+    [APP]
+    LOG4PERL = ./config/log.conf</pre>
+<p>(Please note the lack of security in storing credentials in a configuration file).</p>
+<p>
+</p>
+<hr />
+<h1><a name="log4perl">LOG4PERL</a></h1>
+<p>Log4perl is used to log messages.  You can provide a log4perl configuration file as 
+a command line argument for most of the applications.  If none is provided, reasonable
+defaults are used.   This includes logging to a file named &quot;debug.log&quot;.</p>
+<p>
+</p>
+<hr />
+<h1><a name="applications">APPLICATIONS</a></h1>
+<p>
+</p>
+<h2><a name="primitive_apps">PRIMITIVE APPS</a></h2>
+<p>There are application scripts for a number of UCS primitive methods.  
+These are listed below:</p>
+<pre>
+    estimate-impact 
+    find-dependencies 
+    post
+    resolve-dn
+    resolve-class
+    resolve-classes 
+    scope</pre>
+<p>
+</p>
+<h2><a name="other_apps">OTHER APPS</a></h2>
+<pre>
+    delete-class
+    event-reader
+    ucs-diff
+    meta-gen
+    convert-to-config</pre>
+<p>
+</p>
+<h2><a name="utility_apps">UTILITY APPS</a></h2>
+<p>There are several useful xml based utilities.  More useful than novel</p>
+<pre>
+    pretty-print 
+    xml-to-html   - convert xml to html so you can view in browser.</pre>
+<p>
+</p>
+<hr />
+<h1><a name="examples">EXAMPLES</a></h1>
+<p>Below, are some examples that you can cut and paste.</p>
+<p>
+</p>
+<h2><a name="get_all_instances_of_a_given_managed_object__eg__computeblade__">Get all instances of a given managed object (eg. computeBlade).</a></h2>
+<pre>
+    perl resolve-class --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --pretty</pre>
+<p>
+</p>
+<h2><a name="get_a_named_managed_object_and_all_its_children__eg__computeblade_">Get a named managed object and all its children (eg. computeBlade)</a></h2>
+<pre>
+    resolve-dn --cfg=./config/demo.conf --dn=org-root uri=https://ucs-vip-ip/nuova --hier --pretty</pre>
+<p>
+</p>
+<h2><a name="get_all_instances_of_named_class__ls_server__in_subtree_under_a_named_managed_object__org_root_org_hr__">Get all instances of named class (ls-server) in subtree under a named managed object (org-root/org-hr):</a></h2>
+<pre>
+    scope --cfg=./config/demo.conf --dn=org-root/org-hr --class=lsServer --uri=https://ucs-vip-ip/nuova --pretty</pre>
+<p>
+</p>
+<h2><a name="get_all_instances_of_a_list_of_classes__read_from_standard_input__">Get all instances of a list of classes (read from standard input):</a></h2>
+<pre>
+    cat class-list.txt | resolve-classes --cfg=./config/demo.conf uri=https://ucs-vip-ip/nuova --hier --pretty</pre>
+<p>
+</p>
+<h2><a name="subscribe_to_ucs_event_channel_">Subscribe to UCS event channel:</a></h2>
+<pre>
+    event-reader --cfg=./config/demo.conf</pre>
+<p>
+</p>
+<h2><a name="delete_all_lsserver_instances__you_will_be_prompted_for_each_deletion__only_single_ucs_operation_to_do_bulk_delete__">Delete all lsServer instances.  You will be prompted for each deletion (only single UCS operation to do bulk delete).</a></h2>
+<pre>
+    delete-class --cfg=./config/demo.conf --class=lsServer --prompt=each</pre>
+<p>
+</p>
+<h2><a name="find_the_managed_objects_that_depend_on_a_policy_pool_">Find the managed objects that depend on a policy/pool:</a></h2>
+<pre>
+    find-dependencies --cfg=./config/demo.conf --dn=org-root/mac-pool-default</pre>
+<p>
+</p>
+<h2><a name="show_the_impact_of_a_ucs_configuration_operation_with_out_applying_">Show the impact of a UCS configuration operation with-out applying.</a></h2>
+<pre>
+    find-dependencies --cfg=./config/demo.conf --xml=delete-policy.xml</pre>
+<p>
+</p>
+<h2><a name="pretty_print_any_xml_document_">Pretty print any xml document:</a></h2>
+<pre>
+    pretty-print --xml=response.xml</pre>
+<p>
+</p>
+<h2><a name="convert_xml_documentation_to_html__for_browser_viewing_">Convert xml documentation to html (for browser viewing)</a></h2>
+<pre>
+    xml-to-html --xml=response.xml</pre>
+<p>
+</p>
+<h2><a name="compare_the_results_of_two_xml_queries_">Compare the results of two xml queries:</a></h2>
+<pre>
+    ucs-diff --xml=resolveDn1.xml --xml=resolveDn2.xml</pre>
+<p>
+</p>
+<h2><a name="create_a_perl_module_with_meta_data_based_on_schema_">Create a perl module with meta-data based on schema:</a></h2>
+<pre>
+    meta-gen  --schema=UCSM-IN.xsd --package test::UcsMeta-2.1a</pre>
+<p>
+</p>
+<h2><a name="convert_a_ucs_response__from_a_resolve_dn_query_for_example__to_a_configuration_operation_">Convert a ucs response (from a resolve dn query for example) to a configuration operation:</a></h2>
+<pre>
+    convert-to-config --xml=response.xml --schema=UCSM-IN.xsd</pre>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Ike Kent, <code>&lt;ikent at cisco.com&gt;</code></p>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>You can find documentation for this module with the perldoc command.</p>
+<pre>
+    perldoc convert-to-config</pre>
+<p>
+</p>
+<hr />
+<h1><a name="license_and_copyright">LICENSE AND COPYRIGHT</a></h1>
+<p>Copyright 2013 Ike Kent.</p>
+<p>This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.</p>
+
+</body>
+
+</html>

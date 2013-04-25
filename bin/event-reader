@@ -185,7 +185,7 @@ event-reader [options]
 
     event-reader --uname=admin --passwd=pass --sleep=120 --uri=https://ucs-vip-ip/nuova --pretty 
 
-    event-reader --cfg=./config/demo.conf --uri=https://ucs-vip-ip/nuova 
+    event-reader --cfg=./config/demo.conf
 
 
 =head1 REQUIRED ARGUMENTS

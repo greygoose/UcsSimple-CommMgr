@@ -77,7 +77,6 @@ my $lCookie = $lCommMgr->doLogin();
 croak "Failed to get cookie" if (!defined $lCookie);
 
 my $lClasses = [];
-# Read in our class file
 while (<>)
 {
     chomp $_;

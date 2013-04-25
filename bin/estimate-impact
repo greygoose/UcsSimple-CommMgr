@@ -168,9 +168,9 @@ estimate-impact - a simple script calls a estimate impact for a proposed UCS con
 
 estimate-impact [options]
 
-    estimate-impact --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --pretty 
+    estimate-impact --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --pretty --xml=config.xml 
 
-    perl estimate-impact --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --hier --pretty
+    perl estimate-impact --cfg=./config/demo.conf --class=computeBlade --xml=config.xml --hier --pretty
 
 
 =head1 REQUIRED ARGUMENTS

@@ -204,13 +204,13 @@ The meta data is extracted from a UCS (UCSM or C-series) schema file.
 
 meta-gen [options]
 
-    meta-gen  --schema=UCSM-IN.xsd --package test::UcsMeta-2.1a
+    meta-gen  --schema=UCSM-IN.xsd --pkg test::UcsMeta-2.1a
 
 
 =head1 REQUIRED ARGUMENTS
 
-    --schema=<filename>       The schema to generate meta data from.
-    --package=<pkg>           Generated perl package name
+    --schema=<filename>   The schema to generate meta data from.
+    --pkg=<pkg>           Package name for the generated module.
 
 
 =head1 OPTIONS

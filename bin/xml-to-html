@@ -236,14 +236,14 @@ xml-to-html - simple and handy script that converts xml to html.
 
 xml-to-html [options]
 
-    xml-to-html --xmlFile=response.xml
+    xml-to-html --xml=response.xml
 
     cat response.xml | XmlToHtml 
 
 
 =head1 OPTIONS
 
-    --xmlFile=<filename>    File to convert.
+    --xml=<filename>    File to convert.
 
 
 =head1 AUTHOR

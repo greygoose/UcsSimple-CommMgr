@@ -162,9 +162,9 @@ scope - a simple script calls a UCS system and does a resolve scope query.
 
 Scope [options]
 
-    scope --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=once
+    scope --uname=admin --passwd=pass --dn=org-root/org-hr --class=lsServer --uri=https://ucs-vip-ip/nuova --hier --pretty
 
-    scope --cfg=./config/demo.conf --class=lsServer --uri=https://ucs-vip-ip/nuova --prompt=each
+    scope --cfg=./config/demo.conf --dn=org-root/org-hr --class=lsServer --uri=https://ucs-vip-ip/nuova --pretty
 
 
 =head1 REQUIRED ARGUMENTS

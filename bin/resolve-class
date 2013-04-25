@@ -156,16 +156,16 @@ __END__
 
 =head1 NAME
 
-UcsSimple::ResolveClass - a simple script calls a UCS system and runs a configResolveClass query.
+resolve-class - get all instances of a given class (configResolveClass query).
 
 
 =head1 USAGE
 
-ResolveClass [options]
+resolve-class [options]
 
-    perl ResolveClass --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --pretty 
+    perl resolve-class --uname=admin --passwd=pass --class=lsServer --uri=https://ucs-vip-ip/nuova --pretty 
 
-    perl ResolveClass --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --hier --pretty
+    perl resolve-class --cfg=./config/demo.conf --class=computeBlade uri=https://ucs-vip-ip/nuova --hier --pretty
 
 
 =head1 REQUIRED ARGUMENTS
