@@ -7,6 +7,7 @@ lib/UcsSimple/SchemaParser.pm
 lib/UcsSimple/Session.pm
 lib/UcsSimple/Util.pm
 lib/UcsSimple/XmlUtil.pm
+bin/count-elements
 bin/convert-to-config
 bin/delete-class
 bin/estimate-impact

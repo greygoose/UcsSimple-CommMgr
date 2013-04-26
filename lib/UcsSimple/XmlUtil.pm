@@ -1,6 +1,7 @@
 ######################################################################
 package UcsSimple::XmlUtil;
 ######################################################################
+
 use strict;
 use warnings;
 
@@ -419,11 +420,11 @@ sub getResolveClassesXml
 {
     my ($aInRefArgs) = @_;
 
-    if (!exists($aInRefArgs->{'class'}))
+    if (!exists($aInRefArgs->{'classes'}))
     {
-        croak "Missing mandatory argument: class\n";
+        croak "Missing mandatory argument: classes\n";
     }
-    my $aInClass = $aInRefArgs->{'class'};
+    my $aInClasses = $aInRefArgs->{'classes'};
 
     my $aInCookie = "";
     if (exists($aInRefArgs->{'cookie'}) and
@@ -441,12 +442,12 @@ sub getResolveClassesXml
 
     my $lXmlRequest = qq(<configResolveClasses cookie="$aInCookie" inHierarchical="$aInHier">);
     $lXmlRequest .= qq(<inIds>);
-    for $lClass in (@{$aInClasses})
+    foreach my $lClass (@{$aInClasses})
     {
-        $lXmlRequest .= qq(<classId value="$lClass">);
+        $lXmlRequest .= qq(<classId value="$lClass"/>);
     }
     $lXmlRequest .= qq(</inIds>);
-    my $lXmlRequest = qq(</configResolveClasses>);
+    $lXmlRequest .= qq(</configResolveClasses>);
 
     return $lXmlRequest;
 }
@@ -533,7 +534,7 @@ sub getComputeLcXml
     my $lXmlRequest = 
         qq(<configConfMo cookie="$aInCookie" dn="$aInDn" inHierarchical="$aInHier">) .
         qq(<inConfig><$aInClass dn="$aInDn" lc="$aInLc"/></inConfig>) . 
-        qq(</configConfMo>) .
+        qq(</configConfMo>); 
 
     return $lXmlRequest;
 }

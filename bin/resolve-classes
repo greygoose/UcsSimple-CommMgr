@@ -85,7 +85,7 @@ while (<>)
 
     if (length ($lClass))
     {
-        push @{$lClasses}, $lClass);
+        push @{$lClasses}, $lClass;
     }
 }
 
@@ -94,23 +94,20 @@ while (<>)
 
 if (!$lSuccess)
 {
-    get_logger(__PACKAGE__)->warn("Request for class $lClass failed");
-    print "Request for class $lClass failed";
+    get_logger(__PACKAGE__)->warn("Request for classes failed");
+    print "Request for classes failed";
     last;
 }
 
-$lClassNameCountHash{$lClass} = countElements(\$lXmlResp, $lClass);
-
 my $lStream = $lSuccess ? *STDOUT : *STDERR;
-#UcsSimple::XmlUtil::printResponse(
-#{
-#    success => $lSuccess, xmlDoc => \$lXmlResp,
-#    errorHash => $lErrHashRef, 
-#    maxLength => (defined($lBriefBytes) ? $lBriefBytes : undef),
-#    pretty => $lPretty, stream => $lStream,
-#});
+UcsSimple::XmlUtil::printResponse(
+{
+    success => $lSuccess, xmlDoc => \$lXmlResp,
+    errorHash => $lErrHashRef, 
+    maxLength => (defined($lBriefBytes) ? $lBriefBytes : undef),
+    pretty => $lPretty, stream => $lStream,
+});
 
-get_logger(__PACKAGE__)->warn("Count for $lClass is $lClassNameCountHash{$lClass}");
 
 $lCommMgr->doLogout();
 

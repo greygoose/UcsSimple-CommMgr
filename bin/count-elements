@@ -1,87 +1,16 @@
 #!/usr/bin/perl
 
-package ElementCountHandler;
-
 use strict;
 use warnings;
+
 use Carp qw(croak cluck confess); 
-use base qw(XML::SAX::Base);
-use XML::Parser::PerlSAX;
 use Getopt::Long;
+use XML::LibXML;
+use UcsSimple::DomUtil;
 
 
-my $lIndent = 0;
-my $lDebug = 0;
-my $lClassDnRef = {};
-my $lClassCountRef = {};
-
-sub printLine
-{
-	my $lIndent = shift;
-	my $line = shift;
-	for my $i (1..$lIndent)
-	{
-		print "   ";
-	}
-	print "$line\n";
-}
-
-sub new
-{
-	my ($aInClass) = @_;
-	my $self = {};
-	bless $self, $aInClass;
-	return $self;
-}
-
-sub start_document 
-{
-	my ($self, $doc) = @_;
-}
-
-sub end_document 
-{
-	my ($self, $doc) = @_;
-}
-
-sub start_element
-{
-	my ($self, $el) = @_;
-
-    my $lClass = $el->{Name};
-    $lClassCountRef->{$lClass}++;
-    if ($lDebug)
-    {
-	    printLine($lIndent, $lClass . "(" . $lClassCountRef->{$lClass}  . ")");
-    }
-
-    if (exists $el->{Attributes}->{'dn'})
-    {
-        my $lDn = $el->{Attributes}->{'dn'};
-        if (!exists $lClassDnRef->{$lClass})
-        {
-            $lClassDnRef->{$lClass} = {};
-        }
-        $lClassDnRef->{$lClass}->{$lDn} = 1;
-    }
-}
-
-sub end_element
-{
-	my ($self, $el) = @_;
-}
-
-
-# Print usage message.
-sub usage
-{
-    print "For usage information:\n";
-    print "\n\tperldoc count-elements\n\n";
-    exit;
-}
-
-
-
+my $gClassDnRef = {};
+my $gClassCountRef = {};
 my $lXmlFile = undef;
 
 # Specify the command line options and process the command line
@@ -95,37 +24,31 @@ my $options_okay = GetOptions (
 
 usage() if !$options_okay;
 
-my $lXml = "";
+# Grab xml from file or stdin
+my $lXmlParser = XML::LibXML->new();
+my $lXmlDoc;
 if (!defined($lXmlFile))
 {
-    $lXml = do { local $/; <STDIN>; }
+    my $lXml = do { local $/; <STDIN>; };
+    $lXmlDoc = $lXmlParser->parse_string($lXml);
 }
 else
 {
-    $lXml = do {
-        open my $FH, '<', $lXmlFile or die $!;
-            local $/; <$FH>;
-    };
+    $lXmlDoc = $lXmlParser->parse_file($lXmlFile);
 }
 
-my $my_handler = ElementCountHandler->new();
+UcsSimple::DomUtil::visit($lXmlDoc, \&countCb);
 
-XML::Parser::PerlSAX->new->parse( 
-    Source => { String => $lXml },
-    Handler => $my_handler
-);
-
-
-
+# Print out the results
 my $lTotal=0;
 my $lTotalDns=0;
-foreach my $lClass (sort keys %{$lClassCountRef})
+foreach my $lClass (sort keys %{$gClassCountRef})
 {
-    my $lDnCount = keys %{$lClassDnRef->{$lClass}};
-    my $lCount   = $lClassCountRef->{$lClass};
+    my $lDnCount = keys %{$gClassDnRef->{$lClass}};
+    my $lCount   = $gClassCountRef->{$lClass};
     print "$lClass (elements=$lCount)(dns=$lDnCount)\n";
 
-    foreach my $lDn (keys %{$lClassDnRef->{$lClass}})
+    foreach my $lDn (keys %{$gClassDnRef->{$lClass}})
     {
         print "\t$lDn\n";
     }
@@ -133,11 +56,38 @@ foreach my $lClass (sort keys %{$lClassCountRef})
     $lTotalDns += $lDnCount;
 }
 
-
-
 print "Total elements:$lTotal\n"; 
 print "Total dns :$lTotalDns\n"; 
 
+
+
+sub countCb
+{
+    my $aInElement = shift;
+
+    my $lClass = $aInElement->localname;
+    $gClassCountRef->{$lClass}++;
+
+    if ($aInElement->hasAttribute('dn'))
+    {
+        my $lDn = $aInElement->getAttribute('dn');
+        if (!exists $gClassDnRef->{$lClass})
+        {
+            $gClassDnRef->{$lClass} = {};
+        }
+        $gClassDnRef->{$lClass}->{$lDn} = 1;
+    }
+}
+
+
+
+# Print usage message.
+sub usage
+{
+    print "For usage information:\n";
+    print "\n\tperldoc count-elements\n\n";
+    exit;
+}
 
 
 

@@ -17,6 +17,7 @@ use Log::Log4perl qw (get_logger);
 use Mozilla::CA qw(SSL_ca_file SSL_ca_path);
 
 use UcsSimple::DomUtil;
+use UcsSimple::XmlUtil;
 
 
 
@@ -44,15 +45,16 @@ sub new
     # Simple processing of ssl options
     my $lSslOptsRef = $aInRefArgs->{'ssl_opts'};
 
-    $self->{userAgent} = LWP::UserAgent->new();
     if (exists($lSslOptsRef->{'no_verify'})  && 
        ($lSslOptsRef->{'no_verify'}))
     {
+        $self->{userAgent} = LWP::UserAgent->new(SSL_verify_mode => 0x00);
         $self->{userAgent}->ssl_opts( SSL_verify_mode => 0x00 );
         $self->{userAgent}->ssl_opts( verify_hostname => 0 );
     }
     else
     {
+        $self->{userAgent} = LWP::UserAgent->new();
         foreach my $lKey (keys %{$lSslOptsRef})
         {        
             $self->{userAgent}->ssl_opts( $lKey => $lSslOptsRef->{$lKey});
