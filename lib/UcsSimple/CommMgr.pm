@@ -141,6 +141,22 @@ sub resolveClasses
 
 
 
+sub resolveDns
+{
+    my ($self, $aInRefArgs) = @_;
+    ref($self) or confess "Instance required";
+
+    my $lXmlRequest = UcsSimple::XmlUtil::getResolveDnsXml($aInRefArgs);
+
+    my ($lSuccess, $lContent, $lErrHashRef) =
+        $self->doPostXML({postData => $lXmlRequest});
+
+    return ($lSuccess, $lContent, $lErrHashRef) if wantarray;
+    return ($lSuccess ? $lContent : undef);
+}
+
+
+
 sub estimateImpact
 {
     my ($self, $aInRefArgs) = @_;

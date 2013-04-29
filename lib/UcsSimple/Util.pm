@@ -176,12 +176,13 @@ sub getPad
     if (length($aInStr) < $aInLen)
     {
         my $lNumChars = $aInLen - length($aInStr);
-        for my $i (0..($lNumChars))
+        for my $i (0..($lNumChars - 1))
         {
             $lPad .= " ";
         }
     }
-    return $lPad;
+    #print qw([$aInStr][$aInLen]);
+    return $aInStr . $lPad;
 }
 
 

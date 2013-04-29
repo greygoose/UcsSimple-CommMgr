@@ -26,7 +26,6 @@ my $lLogCfgFile = undef;
 my $lCfgFile = undef;
 
 my $lRetCode = 1;
-my %lClassNameCountHash;
 my $lSuccess = 1;
 my $lXmlResp;
 my $lErrHashRef;
@@ -111,11 +110,6 @@ UcsSimple::XmlUtil::printResponse(
 
 $lCommMgr->doLogout();
 
-foreach my $lClass (sort keys %lClassNameCountHash)
-{
-    print $lClass . "=" . $lClassNameCountHash{$lClass} . "\n";
-}
-
 $lRetCode = $lSuccess ? 0 : 1;
 exit $lRetCode;
 
@@ -125,7 +119,7 @@ exit $lRetCode;
 sub usage 
 {
     print "For usage information:\n";
-    print "\n\tresolve-classes\n\n";
+    print "\n\tperldoc resolve-classes\n\n";
     exit;
 }
 
@@ -177,21 +171,6 @@ sub sigIntHandler
 
 
 
-sub countElements
-{
-    my ($aInDocRef, $aInTag) = @_;
-    my $lCount = 0;
-
-    my $lParser = XML::LibXML->new();
-    my $lDoc = $lParser->parse_string(${$aInDocRef});
-    my @lElements =  $lDoc->getElementsByTagName($aInTag);
-    $lCount = scalar @lElements; 
-
-    return $lCount;
-}
-
-
-
 __END__
 
 
@@ -207,7 +186,7 @@ resolve-classes [options]
 
     resolve-classes --uname=admin --passwd=pass --uri=https://ucs-vip-ip/nuova --pretty 
 
-    resolve-classes --cfg=./config/demo.conf uri=https://ucs-vip-ip/nuova --hier --pretty
+    resolve-classes --cfg=./config/demo.conf --hier --pretty
 
 Classes are read 1 per line from standard input.
 

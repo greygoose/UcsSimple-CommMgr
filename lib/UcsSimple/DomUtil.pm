@@ -13,7 +13,9 @@ use UcsSimple::ClassMeta;
 use Data::Dumper;
 
 @ISA    = qw( Exporter );
-@EXPORT_OK = qw( &pruneDomTree &getUcsAttrs &getConfigConfMo &getConfigConfMos &populateDn &getEstimateImpact );
+@EXPORT_OK = qw( &pruneDomTree &getUcsAttrs &getConfigConfMo &getConfigConfMos 
+                 &populateDn &getEstimateImpact &getFieldWidthCb &getElementByClassCb &getElementByDnCb);
+
 $VERSION = "0.0001";
 
 use constant ELEMENT_NODE => 1;
@@ -110,25 +112,115 @@ sub pruneDomTree
 # 
 sub visit
 {
-    my ($aInNode, $aInFnRef) = @_;
+    my ($aInNode, $aInFnOrArrayRef) = @_;
 
     if ($aInNode->nodeType() == DOCUMENT_NODE)
     {
-        visit($aInNode->getDocumentElement(), $aInFnRef);
+        visit($aInNode->getDocumentElement(), $aInFnOrArrayRef);
     }
     elsif ($aInNode->nodeType() == ELEMENT_NODE)
     {
         my $lClass = $aInNode->localname();
         my $lParent = $aInNode->getParentNode();
-        & {$aInFnRef} ($aInNode);
+
+        if (ref($aInFnOrArrayRef) eq 'ARRAY')
+        {
+            foreach my $lFn (@{$aInFnOrArrayRef})
+            {
+                & {$lFn} ($aInNode);
+            }
+        }
+        else
+        {
+            & {$aInFnOrArrayRef} ($aInNode);
+        }
  
         my @lChildren =  $aInNode->getChildNodes;
         for my $lChild (@lChildren)
         {
-            visit($lChild, $aInFnRef);
+            visit($lChild, $aInFnOrArrayRef);
         }
     }
 }
+
+
+
+sub getElementByDnCb
+{
+    my ($aInDnElementMap) = @_;
+
+    my $lCb = sub
+    {
+        my $aInElement = shift;
+        if ($aInElement->hasAttribute("dn"))
+        {
+            my $lDn = $aInElement->getAttribute("dn");
+            $aInDnElementMap->{$lDn} = $aInElement;
+        }
+    };
+    return $lCb;
+}
+
+
+
+sub getElementByClassCb
+{
+    my ($aInOutClassElementMap) = @_;
+
+    my $lCb = sub
+    {
+        my $aInElement = shift;
+
+        my $lClass = $aInElement->localname;
+        if (!exists($aInOutClassElementMap->{$lClass}))
+        {
+            $aInOutClassElementMap->{$lClass} = []
+        }
+        push @{$aInOutClassElementMap->{$lClass}}, $aInElement;
+    };
+    return $lCb;
+}
+
+
+
+sub getFieldWidthCb
+{
+    my ($aInOutClassAttrLengthMap) = @_;
+
+    my $lCb = sub 
+    {
+        my $aInElement = shift;
+
+        my $lClass = $aInElement->localname;
+        if (!exists($aInOutClassAttrLengthMap->{$lClass}))
+        {
+            $aInOutClassAttrLengthMap->{$lClass} = {}
+        }
+
+        my @lAttrs = $aInElement->attributes();
+        foreach my $lAttr (@lAttrs)
+        {
+            my $lAttrName = $lAttr->nodeName();
+            # print "Current attribute : ($lClass)($lAttrName)\n";
+            # Do not delete dn and rn
+            my $lMaxLength =  0;
+            if ((exists $aInOutClassAttrLengthMap->{$lClass}) &&
+                (exists $aInOutClassAttrLengthMap->{$lClass}->{$lAttrName}))
+            {
+                $lMaxLength = $aInOutClassAttrLengthMap->{$lClass}->{$lAttrName};
+            }
+            my $lValue = $lAttr->getValue();
+            my $lCurrLength = length ($lValue);
+            if ($lCurrLength >= $lMaxLength)
+            {
+                $aInOutClassAttrLengthMap->{$lClass}->{$lAttrName} = $lCurrLength;
+            }
+        }
+    };
+    return $lCb;
+}
+
+
 
 
 sub getSimplePrintVisitor
@@ -754,6 +846,9 @@ Perhaps a little code snippet.
 =item * getConfigConfMos
 =item * extractCfg
 =item * getEstimateImpact
+=item * getFieldWidthCb
+=item * getElementByClassCb
+=item * getElementByDnCb
 
 
 =head1 SUBROUTINES/METHODS

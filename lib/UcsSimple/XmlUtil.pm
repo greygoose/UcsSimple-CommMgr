@@ -27,6 +27,7 @@ use UcsSimple::Util;
     &getRefreshXml
     &getScopeXml
     &getResolveDnXml
+    &getResolveDnsXml
     &getFindDepXml
     &getResolveClassXml
     &getResolveClassesXml
@@ -414,6 +415,43 @@ sub getResolveClassXml
     return $lXmlRequest;
 }
 
+
+
+sub getResolveDnsXml
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'dns'}))
+    {
+        croak "Missing mandatory argument: dns\n";
+    }
+    my $aInDns = $aInRefArgs->{'dns'};
+
+    my $aInCookie = "";
+    if (exists($aInRefArgs->{'cookie'}) and
+       (defined($aInRefArgs->{'cookie'})))
+    {
+        $aInCookie = $aInRefArgs->{'cookie'};
+    }
+
+    my $aInHier = "false";
+    if (exists($aInRefArgs->{'hier'}) and
+       ($aInRefArgs->{'hier'}))
+    {
+        $aInHier = "true";
+    }
+
+    my $lXmlRequest = qq(<configResolveDns cookie="$aInCookie" inHierarchical="$aInHier">);
+    $lXmlRequest .= qq(<inDns>);
+    foreach my $lDn (@{$aInDns})
+    {
+        $lXmlRequest .= qq(<dn value="$lDn"/>);
+    }
+    $lXmlRequest .= qq(</inDns>);
+    $lXmlRequest .= qq(</configResolveDns>);
+
+    return $lXmlRequest;
+}
 
 
 sub getResolveClassesXml
