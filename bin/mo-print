@@ -1,0 +1,317 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Carp qw(croak cluck confess); 
+use Getopt::Long;
+use XML::LibXML;
+use UcsSimple::DomUtil; 
+use UcsSimple::Util; 
+use Config::Std;
+use Data::Dumper;
+use XML::Simple;
+
+
+my $lXmlFile = undef;
+my $lMoPrintFile = undef;
+my $lFormat = "dn-only";
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions 
+(
+    # Application specific options
+    'xml=s'        => \$lXmlFile,      # XML file.
+    'print-cfg=s'  => \$lMoPrintFile,  # Config file describes what to print
+    'format=s'     => \$lFormat,       # Print as table or detail
+
+    # Standard meta-options
+    'usage'                 => sub { usage(); },
+);
+
+usage() if !$options_okay;
+
+usage() if (($lFormat ne "detail") && ($lFormat ne "table") &&
+           ($lFormat ne "raw") && ($lFormat ne "dn-only"));
+
+if (($lFormat eq "table") || ($lFormat eq "detail"))
+{
+    usage() if (!$lMoPrintFile);
+}
+
+
+# Grab xml from file or stdin
+my $lXmlParser = XML::LibXML->new();
+my $lXmlDoc;
+if (!defined($lXmlFile))
+{
+    my $lXml = do { local $/; <STDIN>; };
+    $lXmlDoc = $lXmlParser->parse_string($lXml);
+}
+else
+{
+    $lXmlDoc = $lXmlParser->parse_file($lXmlFile);
+}
+
+my $lFieldWidthMap = {};
+
+# Read in format from an xml file
+my $lMoAttrPrintCfg = undef;
+if (($lFormat eq "table") || ($lFormat eq "detail"))
+{ 
+    my $lXmlSimple = XML::Simple->new();
+    $lMoAttrPrintCfg = $lXmlSimple->XMLin($lMoPrintFile); 
+}
+
+if ($lFormat eq "table")
+{
+    my $lClassElementMap = {};
+    UcsSimple::DomUtil::visit(
+        $lXmlDoc, 
+        [
+            UcsSimple::DomUtil::getFieldWidthCb($lFieldWidthMap), 
+            UcsSimple::DomUtil::getElementByClassCb($lClassElementMap), 
+        ]
+    );
+    # Now we have elements conveniently organized (print them out)
+    my $lFormat = undef;
+    printTable($lClassElementMap, $lMoAttrPrintCfg, $lFieldWidthMap);
+}
+else 
+{
+    my $lDnElementMap = {};
+    UcsSimple::DomUtil::visit(
+        $lXmlDoc, 
+        [
+            UcsSimple::DomUtil::getElementByDnCb($lDnElementMap),
+        ]
+    );
+    # Now we have elements conveniently organized (print them out)
+    printDetail( 
+    {
+        dnElementMap => $lDnElementMap, 
+        moAttrPrintCfg => $lMoAttrPrintCfg,
+        dnOnly => ($lFormat eq "dn-only"),
+        raw => ($lFormat eq "raw"),
+    });
+}
+
+
+
+sub levelSort 
+{
+    my $lLevelA = () = $a =~ /\//g;
+    my $lLevelB = () = $b =~ /\//g;
+    return ($lLevelA <=> $lLevelB);
+}
+
+
+
+sub printTable
+{
+    my ($aInClassElementMap, $aInMoAttrPrintCfg, $aInFwMap) = @_;
+
+    foreach my $lClass (sort keys %{$aInClassElementMap})
+    {
+        if (exists $aInMoAttrPrintCfg->{'table'}->{$lClass})
+        {
+            # Print headings!
+            #print "Class : " . $lClass . "\n";
+            my $lFieldWidths = {};
+
+            foreach my $lPropRef (@{$aInMoAttrPrintCfg->{table}->{$lClass}->{'property'}})
+            {
+                # Update fieldwidth based on heading!
+                my $lPropName = $lPropRef->{'propName'};
+                my $lLabel = $lPropRef->{'label'};
+
+                if (exists $lPropRef->{'colWidth'})
+                {
+                    $lFieldWidths->{$lPropName} = $lPropRef->{'colWidth'};
+                }
+                else
+                {
+                    my $lFw = $aInFwMap->{$lClass}->{$lPropName};
+                    my $lHeadWidth = length($lLabel);
+                    $lFieldWidths->{$lPropName} = 
+                        ($lFw > $lHeadWidth) ? $lFw : $lHeadWidth;
+                }
+                print UcsSimple::Util::getPad($lLabel, $lFieldWidths->{$lPropName});
+                print "   ";
+            }
+
+            print "\n";
+
+            foreach my $lElement (@{$aInClassElementMap->{$lClass}})
+            {
+                # Print table row
+                foreach my $lPropRef (@{$aInMoAttrPrintCfg->{table}->{$lClass}->{'property'}})
+                {
+
+                    #print "Property : " . $lPropRef->{'propName'} . "\n"; 
+                    #print "Label    : " . $lPropRef->{'label'} . "\n"; 
+                    my $lPropName = $lPropRef->{'propName'};
+                    my $lValue = $lElement->getAttribute($lPropName);
+
+                    #print "\n  $lValue \n";
+                    #print "$lFieldWidths->{$lPropName} \n";
+                    print UcsSimple::Util::getPad($lValue, $lFieldWidths->{$lPropName}); 
+                    #print "[" . $lFieldWidths->{$lPropName} . "]" . UcsSimple::Util::getPad($lValue, $lFieldWidths->{$lPropName}) . "]";
+                    print "   ";
+                }
+                print "\n";
+            }
+        }
+    }
+}
+
+
+
+# printDetail({dnElementMap=> $lDnElementMap, raw => 1});
+# printDetail({dnElementMap=> $lDnElementMap, dnOnly => 1});
+# printDetail({dnElementMap=> $lDnElementMap, moAttrPrintCfg=>lMoAttrPrintCfg});
+# printDetail({dnElementMap=> $lDnElementMap, moAttrPrintCfg=>lMoAttrPrintCfg});
+sub printDetail
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'dnElementMap'}))
+    {
+        confess "Missing mandator argument: dnElementMap";
+    }
+    my $aInDnElementMap = $aInRefArgs->{'dnElementMap'};
+
+    my $aInMoAttrPrintCfg = undef;
+    if (exists($aInRefArgs->{'moAttrPrintCfg'}))
+    {
+        $aInMoAttrPrintCfg = $aInRefArgs->{'moAttrPrintCfg'};
+    }
+
+    my $aInDnOnly = exists($aInRefArgs->{'dnOnly'})
+                    && ($aInRefArgs->{'dnOnly'});
+
+    my $aInRaw = exists($aInRefArgs->{'raw'})
+                    && ($aInRefArgs->{'raw'});
+
+    if ((!$aInMoAttrPrintCfg) &&
+        (!$aInDnOnly) && (!$aInRaw))
+    {
+        $aInRaw = 1;
+    }
+
+    # Sort based on the dn depth
+    foreach my $lDn (sort levelSort keys %{$aInDnElementMap})
+    {
+        my $lElement = $aInDnElementMap->{$lDn};
+        my $lClass = $lElement->localname();
+        if ($aInDnOnly) 
+        {
+            my $lLevel = () = $lDn =~ /\//g;
+            print UcsSimple::Util::getIndent($lLevel * 2);
+            print "$lDn\n";
+        }
+        elsif ($aInRaw)
+        {
+            my $lLevel = () = $lDn =~ /\//g;
+            my @lAttrs = $lElement->attributes();
+            print UcsSimple::Util::getIndent($lLevel * 2);
+            print qq($lDn $lClass);
+            print "\n";
+            $lLevel++; 
+            foreach my $lAttr (@lAttrs)
+            {
+                my $lAttrName = $lAttr->nodeName();
+                if ($lAttrName ne "dn")
+                {
+                    my $lValue = $lAttr->getValue();
+                    print UcsSimple::Util::getIndent($lLevel * 2);
+                    print qq($lAttrName: $lValue);
+                    print "\n";
+               }
+            }
+            print "\n";
+        }
+        else
+        {
+            if (exists $aInMoAttrPrintCfg->{'detail'}->{$lClass})
+            {
+                print "[$lDn]\n";
+                foreach my $lPropRef (@{$aInMoAttrPrintCfg->{table}->{$lClass}->{'property'}})
+                {
+                    # Update fieldwidth based on heading!
+                    my $lPropName = $lPropRef->{'propName'};
+                    my $lValue = $lElement->getAttribute($lPropName);
+                    my $lLabel = $lPropRef->{'label'};
+                    print qq($lLabel :  $lValue);
+                    print "\n";
+                }
+                print "\n";
+            }
+        }
+    }
+}
+
+
+
+# Print usage message.
+sub usage
+{
+    print "For usage information:\n";
+    print "\n\tperldoc mo-print\n\n";
+    exit;
+}
+
+
+
+__END__
+
+
+=head1 NAME
+
+mo-print - selectively print out an xml document in several formats based on 
+a print configuration file.
+
+=head1 USAGE
+
+mo-print [options]
+
+    mo-print --xml=response.xml --format=table --print-cfg=mo_print_cfg.xml
+
+    mo-print --xml=response.xml --format=detail --print-cfg=mo_print_cfg.xml
+
+    cat response.xml | mo-print --format=table 
+
+
+=head1 REQUIRED ARGUMENTS
+
+    --format=<format>       The format must be detail, table, dn-only, or raw
+
+=head1 OPTIONS
+
+    --xml=<filename>        The xml response to print out (read from stdin if not provided).
+    --print-cfg=<filename>  An xml file that describes the detail or table format.
+
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc mo-print
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+
+
