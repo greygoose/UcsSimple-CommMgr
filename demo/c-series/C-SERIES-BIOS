@@ -1,7 +1,5 @@
 Configuring BIOS Tokens with the Cisco C-Series XML API
 
-
-
 =head1 NAME
 
 This document provides an example of commands that can be used to configure the c-series XML API.
@@ -34,14 +32,34 @@ This document describes an approach to automation c-series provisioning of BIOS 
 The same techniques described can be used to configure all c-series components.
 The required steps are:
 
-* Check the system settings;
-* Use the web gui to configure the desired settings on a single server;
-* Query the server's BIOS tokens and save to a file; 
-* Create a BIOS configuration xml document that can be applied to other servers.
-  other servers.  This is done using the xml schema;
-* Configure other servers using the BIOS configuration;
-* Verify the configuration 
 
+=over
+
+=item 1
+
+Check the system settings;
+
+=item 2 
+
+Use the web gui to configure the desired settings on a single server;
+
+=item 3 
+
+Query the server's BIOS tokens and save to a file; 
+
+=item 4 
+
+Create a BIOS configuration xml document that can be applied to other servers.  other servers.  This is done using the xml schema;
+
+=item 5 
+
+Configure other servers using the BIOS configuration;
+
+=item 6 
+
+Verify the configuration 
+
+=back
 
 
 =head2 Check the system settings

@@ -1,0 +1,155 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Configuring BIOS Tokens with C-Series XML API</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#setup">Setup</a></li>
+	<ul>
+
+		<li><a href="#approach">Approach</a></li>
+		<li><a href="#check_the_system_settings">Check the system settings</a></li>
+		<li><a href="#configure_desired_bios_settings">Configure desired bios settings</a></li>
+		<li><a href="#query_the_bios_settings">Query the bios settings</a></li>
+		<li><a href="#create_a_bios_configuration_xml_document_that_can_be_applied_to_other_servers_">Create a BIOS configuration xml document that can be applied to other servers.</a></li>
+		<li><a href="#configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></li>
+		<li><a href="#configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></li>
+		<li><a href="#miscellaneous_notes">Miscellaneous Notes</a></li>
+	</ul>
+
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#license_and_copyright">LICENSE AND COPYRIGHT</a></li>
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>This document provides an example of commands that can be used to configure the c-series XML API.</p>
+<p>
+</p>
+<hr />
+<h1><a name="setup">Setup</a></h1>
+<p>We assume that there is a configuration script for the target c-series called 
+&quot;./cfg/220M3.xml&quot;.</p>
+<p>The uri, uname, passwd and log4perl command line options can be read from it.
+Example configuration file:</p>
+<pre>
+    [UCS]
+    URI     = <a href="http://ucs-vip/nuova">http://ucs-vip/nuova</a>
+    UNAME = admin
+    PASSWORD = Nbv12345</pre>
+<pre>
+    [APP]
+    LOG4PERL = ./config/log.conf</pre>
+<p>(Please note the lack of security in storing credentials in a configuration file).</p>
+<p>
+</p>
+<h2><a name="approach">Approach</a></h2>
+<p>This document describes an approach to automation c-series provisioning of BIOS tokens.
+The same techniques described can be used to configure all c-series components.
+The required steps are:</p>
+<ol>
+<li>
+<p>Check the system settings;</p>
+</li>
+<li>
+<p>Use the web gui to configure the desired settings on a single server;</p>
+</li>
+<li>
+<p>Query the server's BIOS tokens and save to a file;</p>
+</li>
+<li>
+<p>Create a BIOS configuration xml document that can be applied to other servers.  other servers.  This is done using the xml schema;</p>
+</li>
+<li>
+<p>Configure other servers using the BIOS configuration;</p>
+</li>
+<li>
+<p>Verify the configuration</p>
+</li>
+</ol>
+<p>
+</p>
+<h2><a name="check_the_system_settings">Check the system settings</a></h2>
+<p>Query the complete rack-server configuration and state using a hierarchical query.</p>
+<pre>
+        resolve-dn --cfg=./cfg/220M3.cfg --dn=sys --hier &gt; 220M3.xml</pre>
+<p>To print print the xml query/results or result counts:</p>
+<pre>
+        pretty-print --xml=220M3.xml --populateDn | more
+        pretty-print --populateDn --xml=220M3.xml | count-elements</pre>
+<p>We can use some utility scripts to harvest interesting information from the above query.</p>
+<pre>
+        mo-print --xml=220M3.xml --print-cfg=./print-cfg/fault.xml --format=table
+        mo-print --xml=220M3.xml --print-cfg=./print-cfg/inventory.xml --format=table | more
+        mo-print --xml=220M3.xml --print-cfg=./print-cfg/firmare.xml   --format=table | more</pre>
+<p>
+</p>
+<h2><a name="configure_desired_bios_settings">Configure desired bios settings</a></h2>
+<p>Using the web gui, configure the desired server BIOS settings.</p>
+<p>
+</p>
+<h2><a name="query_the_bios_settings">Query the bios settings</a></h2>
+<p>We can query the bios settings (and save them to a file) with the following query:</p>
+<pre>
+        resolve-dn --cfg=./cfg/220M3.config --dn=sys/rack-unit-1/bios/bios-settings --hier &gt; 220M3-bios-query.xml</pre>
+<p>
+</p>
+<h2><a name="create_a_bios_configuration_xml_document_that_can_be_applied_to_other_servers_">Create a BIOS configuration xml document that can be applied to other servers.</a></h2>
+<p>Convert the query result to a xml configuration that can be applied to other servers.  
+This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
+<p>
+</p>
+<h2><a name="configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></h2>
+<p>We can now use the BIOS configuration to configure other servers.</p>
+<pre>
+        post --cfg=target-server.config --xml=220M3-gold.xml</pre>
+<p>
+</p>
+<h2><a name="configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></h2>
+<p>We can do the following steps to verify the configuration.</p>
+<p>Query the configured server &quot;target-server&quot; for its current bios settings:</p>
+<pre>
+        resolve-dn --cfg=./cfg/target.cfg --dn=sys/rack-unit-1/bios/bios-settings --hier &gt; target-bios-query.xml</pre>
+<p>Convert the query to a configuration operation:</p>
+<pre>
+         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C240.xsd &gt; target-current.xml</pre>
+<p>Compare the two xml configuration documents:</p>
+<pre>
+        ucs-diff --xml=./target-current.xml --xml=./220M3-gold.xml</pre>
+<p>
+</p>
+<h2><a name="miscellaneous_notes">Miscellaneous Notes</a></h2>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Ike Kent, <code>&lt;ikent at cisco.com&gt;</code></p>
+<p>
+</p>
+<hr />
+<h1><a name="license_and_copyright">LICENSE AND COPYRIGHT</a></h1>
+<p>Copyright 2013 Ike Kent.</p>
+<p>This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.</p>
+
+</body>
+
+</html>

@@ -25,6 +25,7 @@ bin/resolve-dns
 bin/scope
 bin/ucs-diff
 bin/xml-to-html
+demo/c-series/C-SERIES-BIOS
 Build.PL
 MANIFEST			This list of files
 README
