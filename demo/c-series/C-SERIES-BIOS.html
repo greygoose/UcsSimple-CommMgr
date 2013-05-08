@@ -16,7 +16,7 @@
 
 <ul>
 
-	<li><a href="#name">NAME</a></li>
+	<li><a href="#purpose">Purpose</a></li>
 	<li><a href="#setup">Setup</a></li>
 	<ul>
 
@@ -24,10 +24,15 @@
 		<li><a href="#check_the_system_settings">Check the system settings</a></li>
 		<li><a href="#configure_desired_bios_settings">Configure desired bios settings</a></li>
 		<li><a href="#query_the_bios_settings">Query the bios settings</a></li>
-		<li><a href="#create_a_bios_configuration_xml_document_that_can_be_applied_to_other_servers_">Create a BIOS configuration xml document that can be applied to other servers.</a></li>
+		<li><a href="#create_a_golden_bios_configuration">Create a &quot;golden&quot; BIOS configuration</a></li>
 		<li><a href="#configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></li>
 		<li><a href="#configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></li>
-		<li><a href="#miscellaneous_notes">Miscellaneous Notes</a></li>
+	</ul>
+
+	<li><a href="#miscellaneous_notes">Miscellaneous Notes</a></li>
+	<ul>
+
+		<li><a href="#firmware_installation">Firmware Installation</a></li>
 	</ul>
 
 	<li><a href="#author">AUTHOR</a></li>
@@ -40,7 +45,7 @@
 
 <p>
 </p>
-<h1><a name="name">NAME</a></h1>
+<h1><a name="purpose">Purpose</a></h1>
 <p>This document provides an example of commands that can be used to configure the c-series XML API.</p>
 <p>
 </p>
@@ -76,7 +81,7 @@ The required steps are:</p>
 <p>Query the server's BIOS tokens and save to a file;</p>
 </li>
 <li>
-<p>Create a BIOS configuration xml document that can be applied to other servers.  other servers.  This is done using the xml schema;</p>
+<p>Create a &quot;golden&quot; BIOS configuration;</p>
 </li>
 <li>
 <p>Configure other servers using the BIOS configuration;</p>
@@ -112,7 +117,7 @@ The required steps are:</p>
         resolve-dn --cfg=./cfg/220M3.config --dn=sys/rack-unit-1/bios/bios-settings --hier &gt; 220M3-bios-query.xml</pre>
 <p>
 </p>
-<h2><a name="create_a_bios_configuration_xml_document_that_can_be_applied_to_other_servers_">Create a BIOS configuration xml document that can be applied to other servers.</a></h2>
+<h2><a name="create_a_golden_bios_configuration">Create a &quot;golden&quot; BIOS configuration</a></h2>
 <p>Convert the query result to a xml configuration that can be applied to other servers.  
 This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
 <p>
@@ -136,7 +141,28 @@ This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
         ucs-diff --xml=./target-current.xml --xml=./220M3-gold.xml</pre>
 <p>
 </p>
-<h2><a name="miscellaneous_notes">Miscellaneous Notes</a></h2>
+<hr />
+<h1><a name="miscellaneous_notes">Miscellaneous Notes</a></h1>
+<p>
+</p>
+<h2><a name="firmware_installation">Firmware Installation</a></h2>
+<p>I used the following configuration to programmatically install my server firmware:</p>
+<pre>
+    &lt;configConfMo cookie=&quot;REPLACE_COOKIE&quot; dn=&quot;sys/huu/firmwareUpdater&quot;&gt;
+        &lt;inConfig&gt;
+            &lt;huuFirmwareUpdater dn=&quot;sys/huu/firmwareUpdater&quot;
+                adminState=&quot;trigger&quot;
+                remoteIp=&quot;10.193.1.70&quot;
+                remoteShare=&quot;/build2/ikent/images/ucs-c220-huu-1.5.1.16.iso&quot;
+                mapType=&quot;nfs&quot;
+                username=&quot;ikent&quot;
+                password=&quot;MY_PASS&quot;
+                stopOnError=&quot;yes&quot;
+                timeOut=&quot;120&quot;
+                verifyUpdate=&quot;true&quot;
+                updateComponent=&quot;all&quot;/&gt;
+        &lt;/inConfig&gt;
+    &lt;/configConfMo&gt;</pre>
 <p>
 </p>
 <hr />
