@@ -1,0 +1,134 @@
+Configuring BIOS Tokens with the Cisco C-Series XML API
+
+
+
+=head1 NAME
+
+This document provides an example of commands that can be used to configure the c-series XML API.
+
+
+
+=head1 Setup
+
+We assume that there is a configuration script for the target c-series called 
+"./cfg/220M3.xml".   
+
+The uri, uname, passwd and log4perl command line options can be read from it.
+Example configuration file:
+
+    [UCS]
+    URI     = http://ucs-vip/nuova
+    UNAME = admin
+    PASSWORD = Nbv12345
+
+    [APP]
+    LOG4PERL = ./config/log.conf
+
+(Please note the lack of security in storing credentials in a configuration file).
+
+
+
+=head2 Approach
+
+This document describes an approach to automation c-series provisioning of BIOS tokens.
+The same techniques described can be used to configure all c-series components.
+The required steps are:
+
+* Check the system settings;
+* Use the web gui to configure the desired settings on a single server;
+* Query the server's BIOS tokens and save to a file; 
+* Create a BIOS configuration xml document that can be applied to other servers.
+  other servers.  This is done using the xml schema;
+* Configure other servers using the BIOS configuration;
+* Verify the configuration 
+
+
+
+=head2 Check the system settings
+
+Query the complete rack-server configuration and state using a hierarchical query.  
+
+	resolve-dn --cfg=./cfg/220M3.cfg --dn=sys --hier > 220M3.xml
+
+To print print the xml query/results or result counts:
+
+	pretty-print --xml=220M3.xml --populateDn | more
+	pretty-print --populateDn --xml=220M3.xml | count-elements
+
+We can use some utility scripts to harvest interesting information from the above query.
+
+	mo-print --xml=220M3.xml --print-cfg=./print-cfg/fault.xml --format=table
+	mo-print --xml=220M3.xml --print-cfg=./print-cfg/inventory.xml --format=table | more
+	mo-print --xml=220M3.xml --print-cfg=./print-cfg/firmare.xml   --format=table | more
+
+
+
+=head2 Configure desired bios settings
+
+Using the web gui, configure the desired server BIOS settings.
+
+
+=head2 Query the bios settings
+
+We can query the bios settings (and save them to a file) with the following query:
+
+	resolve-dn --cfg=./cfg/220M3.config --dn=sys/rack-unit-1/bios/bios-settings --hier > 220M3-bios-query.xml
+
+
+
+=head2 Create a BIOS configuration xml document that can be applied to other servers.
+
+Convert the query result to a xml configuration that can be applied to other servers.  
+This is done using the xml schema and saved in the file 2220M3-gold.xml
+
+
+
+=head2 Configure servers using this BIOS configuration
+
+We can now use the BIOS configuration to configure other servers.
+
+	post --cfg=target-server.config --xml=220M3-gold.xml
+
+
+
+=head2 Configure servers using this BIOS configuration
+
+We can do the following steps to verify the configuration. 
+
+Query the configured server "target-server" for its current bios settings:
+
+	resolve-dn --cfg=./cfg/target.cfg --dn=sys/rack-unit-1/bios/bios-settings --hier > target-bios-query.xml
+
+Convert the query to a configuration operation:
+
+         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C240.xsd > target-current.xml
+
+
+Compare the two xml configuration documents:
+
+	ucs-diff --xml=./target-current.xml --xml=./220M3-gold.xml 
+
+
+
+=head2 Miscellaneous Notes
+
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+
+

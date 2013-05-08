@@ -61,6 +61,7 @@ You can get documentation for each of the programs as follows:
     perldoc resolve-dn
     perldoc ucs-diff
     perldoc delete-class
+    perldoc delete-mo
     perldoc event-reader
     perldoc meta-gen
     perldoc pretty-print
@@ -120,6 +121,7 @@ These are listed below:
 
 =head2 OTHER APPS
 
+    delete-mo
     delete-class
     event-reader
     ucs-diff

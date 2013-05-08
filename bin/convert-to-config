@@ -60,7 +60,6 @@ $lClassMeta->applyTypicalUcsMods();
 
 my $lCfgDoc = UcsSimple::DomUtil::getConfigConfMo({doc=>$lXmlDoc, classMeta=>$lClassMeta});
 
-
 if ($lPretty)
 {
     my $lXml = $lCfgDoc->toString(); 

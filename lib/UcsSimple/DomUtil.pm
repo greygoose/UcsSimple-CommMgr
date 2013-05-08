@@ -14,7 +14,7 @@ use Data::Dumper;
 
 @ISA    = qw( Exporter );
 @EXPORT_OK = qw( &pruneDomTree &getUcsAttrs &getConfigConfMo &getConfigConfMos 
-                 &populateDn &getEstimateImpact &getFieldWidthCb &getElementByClassCb &getElementByDnCb);
+                 &populateDn &getEstimateImpact &getFieldWidthCb &getElementByClassCb &getElementByDnCb &isStat);
 
 $VERSION = "0.0001";
 
@@ -47,19 +47,65 @@ sub getLevel
 
 
 
+sub isStat
+{
+    my ($aInElement) = @_;
+
+    my $lClass = $aInElement->localname();
+    if (($lClass =~ /Stats$/) && 
+       $aInElement->hasAttribute('timeCollected'))
+    {
+        return 1;
+    }
+    return 0;
+}
+
+
+
 #
 # Trim the passed dom tree
-# $aInDelClassMap - map of element names to delete; 
-# $aInKeepAttrMap - map keyed by class of attributes to keep 
-#                 - other attributes are removed from DOM element.
+# node => DOM node 
+# keepAttrMap => - map keyed by class of attributes to keep 
+#                - other attributes are removed from DOM element.
+# delClassMap => - map of classes (elements) to deleted.
+# delUnknown => -  flag - to delete unknown classes (i.e. have 'rn' field)
 sub pruneDomTree
 {
-    my ($aInNode, $aInDelClassMap, $aInKeepAttrMap) = @_;
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'node'}))
+    {
+        confess "Missing mandator argument: node";
+    }
+    my $aInNode = $aInRefArgs->{'node'};
+
+    my $aInKeepAttrMap = {};
+    if (exists($aInRefArgs->{'keepAttrMap'}))
+    {
+        $aInKeepAttrMap = $aInRefArgs->{'keepAttrMap'};
+    }
+
+    my $aInDelClassMap = {};
+    if (exists($aInRefArgs->{'delClassMap'}))
+    {
+        $aInDelClassMap = $aInRefArgs->{'delClassMap'};
+    }
+
+    my $lDelUnknownClasses = undef;
+    if (exists($aInRefArgs->{'delUnknown'}))
+    {
+        $lDelUnknownClasses = $aInRefArgs->{'delUnknown'};
+    }
 
     if ($aInNode->nodeType() == DOCUMENT_NODE)
     {
         # Handle passed in document gracefully
-        pruneDomTree ($aInNode->getDocumentElement(), $aInDelClassMap, $aInKeepAttrMap);
+        pruneDomTree ({
+            node => $aInNode->getDocumentElement(), 
+            delClassMap => $aInDelClassMap, 
+            keepAttrMap => $aInKeepAttrMap,
+            delUnknown => $lDelUnknownClasses,
+        });
     }
     elsif ($aInNode->nodeType() == ELEMENT_NODE)
     {
@@ -67,12 +113,15 @@ sub pruneDomTree
         my $lClass = $aInNode->localname();
         # print "Current element class : ($lClass)\n";
         my $lParent = $aInNode->getParentNode();
-  
-        if (exists $aInDelClassMap->{$lClass})
+          
+        if ((exists $aInDelClassMap->{$lClass}) ||
+            (($lDelUnknownClasses) &&
+             (!(exists $aInKeepAttrMap->{$lClass})) &&
+             $aInNode->hasAttribute("rn")))
         {
             # print "Deleting element since class is ($lClass)\n";
             $lParent->removeChild($aInNode);
-        }
+        } 
         else
         {
             # print "Keeping element since class is ($lClass)\n";
@@ -99,7 +148,12 @@ sub pruneDomTree
             my @lChildren =  $aInNode->getChildNodes;
             for my $lChild (@lChildren)
             {
-                pruneDomTree ($lChild, $aInDelClassMap, $aInKeepAttrMap);
+                pruneDomTree ({
+                    node => $lChild,
+                    delClassMap => $aInDelClassMap, 
+                    keepAttrMap => $aInKeepAttrMap,
+                    delUnknown => $lDelUnknownClasses,
+                });
             }
         }
     }
@@ -204,11 +258,13 @@ sub getFieldWidthCb
             # print "Current attribute : ($lClass)($lAttrName)\n";
             # Do not delete dn and rn
             my $lMaxLength =  0;
+
             if ((exists $aInOutClassAttrLengthMap->{$lClass}) &&
                 (exists $aInOutClassAttrLengthMap->{$lClass}->{$lAttrName}))
             {
                 $lMaxLength = $aInOutClassAttrLengthMap->{$lClass}->{$lAttrName};
             }
+
             my $lValue = $lAttr->getValue();
             my $lCurrLength = length ($lValue);
             if ($lCurrLength >= $lMaxLength)
@@ -571,8 +627,12 @@ sub getConfigConfMo
 
     # Take the current UCS configuration and remove non-configurable classes and attributes
     # Pass in elements to delete and elements/attributes to keep;
-    pruneDomTree(
-        $aInDoc, $aInClassMeta->getNonConfigClasses(), $aInClassMeta->getConfigAttrs());
+    pruneDomTree ({
+        node => $aInDoc,
+        delClassMap => $aInClassMeta->getNonConfigClasses(),
+        keepAttrMap => $aInClassMeta->getConfigAttrs(),
+        delUnknown => 1
+    });
 
     # Now create a document with the 'outConfigs' or 'outConfig' of the query
     my $lConfMoDoc = XML::LibXML::Document->createDocument("1.0");
@@ -649,8 +709,12 @@ sub getConfigConfMos
 
     # Take the current UCS configuration and remove non-configurable classes and attributes
     # Pass in elements to delete and elements/attributes to keep;
-    pruneDomTree(
-        $aInDoc, $aInClassMeta->getNonConfigClasses(), $aInClassMeta->getConfigAttrs());
+    pruneDomTree ({
+        node => $aInDoc,
+        delClassMap => $aInClassMeta->getNonConfigClasses(),
+        keepAttrMap => $aInClassMeta->getConfigAttrs(),
+        delUnknown => 1
+    });
 
     # Now create a document with the 'outConfigs' or 'outConfig' of the query
     my $lConfMosDoc = XML::LibXML::Document->createDocument("1.0");
@@ -849,9 +913,19 @@ Perhaps a little code snippet.
 =item * getFieldWidthCb
 =item * getElementByClassCb
 =item * getElementByDnCb
+=item * isStat
 
 
 =head1 SUBROUTINES/METHODS
+
+=head2 getLevel
+
+Get the level of passed DOM element in the DOM.
+
+
+=head2 isStat
+
+Check if a passed xml element is a statistic
 
 =head2 getLevel
 

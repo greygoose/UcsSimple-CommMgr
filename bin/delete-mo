@@ -23,7 +23,8 @@ my $lXmlFile = undef;
 my $lPretty= undef;
 my $lBriefBytes = undef;
 my $lHier= undef;
-my $lDn= "";
+my $lDn= undef;
+my $lClass = undef;
 my $lLogCfgFile = undef;
 my $lCfgFile = undef;
 my $lRetCode = 1;
@@ -36,7 +37,9 @@ my $options_okay = GetOptions (
 	'passwd=s'      => \$lPasswd,       # Password.
 	'log4perl=s'    => \$lLogCfgFile,   # log4perl configuration file
 	'cfg=s'         => \$lCfgFile,      # a cfg file with application settings.
+
         'dn=s'          => \$lDn,           # DN
+        'class=s'       => \$lClass,        # The mo's class
         'hier'          => \$lHier,         # Hierarchical
 
 	'pretty'	=> \$lPretty,  	    # Pretty print response.
@@ -60,7 +63,7 @@ if (defined($lCfgFile))
     $lLogCfgFile = $lConfig{'APP'}{'LOG4PERL'} if (!$lLogCfgFile);
 }
 
-usage() if ((!$lUname) || (!$lPasswd) || (!$lUri)  || (!defined($lDn)));
+usage() if ((!$lUname) || (!$lPasswd) || (!$lUri)  || (!$lDn));
 
 initLogging($lLogCfgFile);
 
@@ -74,8 +77,18 @@ $lCommMgr = UcsSimple::CommMgr->new(
 my $lCookie = $lCommMgr->doLogin();
 croak "Failed to get cookie" if (!defined $lCookie);
 
+
+if (!defined($lClass))
+{
+    die "Resolve class not implemented yet - please provide class in command-line\n";
+    my ($lSuccess, $lXmlResp, $lErrHashRef) = 
+        $lCommMgr->resolveDn({ dn => $lDn, hier => $lHier });
+    
+     # TODO: DETERMINE THE CLASS OF THE DN.
+}
+
 my ($lSuccess, $lXmlResp, $lErrHashRef) = 
-    $lCommMgr->resolveDn({ dn => $lDn, hier => $lHier });
+    $lCommMgr->deleteMo({ dn => $lDn, class=>$lClass, hier => $lHier });
 
 my $lStream = $lSuccess ? *STDOUT : *STDERR;
 UcsSimple::XmlUtil::printResponse(
@@ -84,7 +97,6 @@ UcsSimple::XmlUtil::printResponse(
     maxLength => (defined($lBriefBytes) ? $lBriefBytes : undef),
     pretty => $lPretty, stream => $lStream, errorHash => $lErrHashRef, 
 });
-
 
 $lCommMgr->doLogout();
 
@@ -97,7 +109,7 @@ exit $lRetCode;
 sub usage 
 {
     print "For usage information:\n";
-    print "\n\tperldoc resolve-dn\n\n";
+    print "\n\tperldoc delete-mo\n\n";
     exit;
 }
 
@@ -152,20 +164,21 @@ __END__
 
 =head1 NAME
 
-resolve-dn - a simple script calls a UCS system and runs a configResolveDn query.
+delete-mo - a simple script to delete a UCS mo.
 
 
 =head1 USAGE
 
-resolve-dn [options]
+delete-mo [options]
 
-    resolve-dn --uname=admin --passwd=pass --dn=org-root/ls-VmScale --uri=https://ucs-vip-ip/nuova --pretty 
+    delete-mo --uname=admin --passwd=pass --dn=org-root/ls-VmScale --uri=https://ucs-vip-ip/nuova --pretty 
 
-    resolve-dn --cfg=./config/demo.conf --dn=org-root --hier --pretty
+    delete-mo --cfg=./config/demo.conf --dn=org-root --hier --pretty
 
 
 =head1 REQUIRED ARGUMENTS
 
+    --dn=<dn>                 Identifies the UCS subtree.
     --uri=<ucs-vip>           The UCS VIP uri.
     --uname=<ucs-user>        The UCS user name.
     --passwd=<ucs-pass>       The UCS password.
@@ -175,8 +188,8 @@ UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
 
 =head1 OPTIONS
 
-    --dn=<dn>                 Identifies the UCS subtree. Defaults to "".
     --hier                    Return hierarchy of found managed objects. 
+    --class=<ucl-class>       The class to search for. The dn will be resolved if this is not provided.
     --cfg=<config-file>       Specify a configuration file. 
     --log4perl=<cfg-file>     The log4perl config file.
     --pretty                  Pretty print the UCS response.

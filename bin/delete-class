@@ -71,7 +71,7 @@ initLogging($lLogCfgFile);
 my $lSession = UcsSimple::Session->new(
     {userName => $lUname, password => $lPasswd, uri => $lUri });
 
-$lCommMgr = UcsSimple::CommMgr->new(
+my $lCommMgr = UcsSimple::CommMgr->new(
     { session => $lSession, ssl_opts => {no_verify => 1} });
 
 my $lCookie = $lCommMgr->doLogin();
@@ -142,7 +142,7 @@ exit $lRetCode;
 sub usage 
 {
     print "For usage information:\n";
-    print "\n\tdelete-class\n\n";
+    print "\n\tperldoc delete-class\n\n";
     exit;
 }
 

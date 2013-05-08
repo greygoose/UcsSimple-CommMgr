@@ -228,6 +228,22 @@ sub scope
 
 
 
+sub deleteMo
+{
+    my ($self, $aInRefArgs) = @_;
+    ref($self) or confess "Instance required";
+
+    my $lDelXml = UcsSimple::XmlUtil::getDeleteXml($aInRefArgs);
+
+    my ($lSuccess, $lContent, $lErrHashRef) =
+        $self->doPostXML({postData => $lDelXml});
+
+    return ($lSuccess, $lContent, $lErrHashRef) if wantarray;
+    return ($lSuccess ? $lContent : undef);
+}
+
+
+
 # Returns undef if login fails
 sub doLogin
 {
@@ -382,9 +398,12 @@ sub doPostXML
         "Request Headers : \n" .
          Dumper($lRequest->headers()));
 
+    my $lNoPass = $lRequest->as_string();
+    $lNoPass =~ s/inPassword\s*=\s*\"(.*?)\"/inPassword=""/gi; 
+
     get_logger(__PACKAGE__)->debug(
         "Request : \n" .
-        $lRequest->as_string());
+        $lNoPass);
 
     # HTTP:: Our response object
     my $lResp = $self->userAgent->request($lRequest);

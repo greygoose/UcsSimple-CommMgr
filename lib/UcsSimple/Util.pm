@@ -173,7 +173,14 @@ sub getPad
 {
     my ($aInStr, $aInLen) = @_;
     my $lPad = "";
-    if (length($aInStr) < $aInLen)
+
+    if (!defined($aInStr))
+    {
+         $aInStr = "";
+    }
+
+    if (defined($aInLen) &&
+       (length($aInStr) < $aInLen))
     {
         my $lNumChars = $aInLen - length($aInStr);
         for my $i (0..($lNumChars - 1))
