@@ -135,7 +135,7 @@ This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
         resolve-dn --cfg=./cfg/target.cfg --dn=sys/rack-unit-1/bios/bios-settings --hier &gt; target-bios-query.xml</pre>
 <p>Convert the query to a configuration operation:</p>
 <pre>
-         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C240.xsd &gt; target-current.xml</pre>
+         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C220.xsd &gt; target-current.xml</pre>
 <p>Compare the two xml configuration documents:</p>
 <pre>
         ucs-diff --xml=./target-current.xml --xml=./220M3-gold.xml</pre>

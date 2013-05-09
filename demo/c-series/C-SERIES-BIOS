@@ -118,7 +118,7 @@ Query the configured server "target-server" for its current bios settings:
 
 Convert the query to a configuration operation:
 
-         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C240.xsd > target-current.xml
+         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C220.xsd > target-current.xml
 
 
 Compare the two xml configuration documents:
