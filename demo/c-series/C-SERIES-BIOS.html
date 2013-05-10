@@ -21,12 +21,12 @@
 	<ul>
 
 		<li><a href="#approach">Approach</a></li>
-		<li><a href="#check_the_system_settings">Check the system settings</a></li>
 		<li><a href="#configure_desired_bios_settings">Configure desired bios settings</a></li>
 		<li><a href="#query_the_bios_settings">Query the bios settings</a></li>
 		<li><a href="#create_a_golden_bios_configuration">Create a &quot;golden&quot; BIOS configuration</a></li>
+		<li><a href="#check_the_system_settings">Check the system settings</a></li>
 		<li><a href="#configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></li>
-		<li><a href="#configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></li>
+		<li><a href="#verify_the_configuration">Verify the configuration</a></li>
 	</ul>
 
 	<li><a href="#miscellaneous_notes">Miscellaneous Notes</a></li>
@@ -72,10 +72,7 @@ The same techniques described can be used to configure all c-series components.
 The required steps are:</p>
 <ol>
 <li>
-<p>Check the system settings;</p>
-</li>
-<li>
-<p>Use the web gui to configure the desired settings on a single server;</p>
+<p>Configure desired bios settings using GUI.</p>
 </li>
 <li>
 <p>Query the server's BIOS tokens and save to a file;</p>
@@ -84,27 +81,15 @@ The required steps are:</p>
 <p>Create a &quot;golden&quot; BIOS configuration;</p>
 </li>
 <li>
+<p>Check the system settings;</p>
+</li>
+<li>
 <p>Configure other servers using the BIOS configuration;</p>
 </li>
 <li>
 <p>Verify the configuration</p>
 </li>
 </ol>
-<p>
-</p>
-<h2><a name="check_the_system_settings">Check the system settings</a></h2>
-<p>Query the complete rack-server configuration and state using a hierarchical query.</p>
-<pre>
-        resolve-dn --cfg=./cfg/220M3.cfg --dn=sys --hier &gt; 220M3.xml</pre>
-<p>To print print the xml query/results or result counts:</p>
-<pre>
-        pretty-print --xml=220M3.xml --populateDn | more
-        pretty-print --populateDn --xml=220M3.xml | count-elements</pre>
-<p>We can use some utility scripts to harvest interesting information from the above query.</p>
-<pre>
-        mo-print --xml=220M3.xml --print-cfg=./print-cfg/fault.xml --format=table
-        mo-print --xml=220M3.xml --print-cfg=./print-cfg/inventory.xml --format=table | more
-        mo-print --xml=220M3.xml --print-cfg=./print-cfg/firmare.xml   --format=table | more</pre>
 <p>
 </p>
 <h2><a name="configure_desired_bios_settings">Configure desired bios settings</a></h2>
@@ -120,6 +105,23 @@ The required steps are:</p>
 <h2><a name="create_a_golden_bios_configuration">Create a &quot;golden&quot; BIOS configuration</a></h2>
 <p>Convert the query result to a xml configuration that can be applied to other servers.  
 This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
+<pre>
+         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C220.xsd &gt; 220M3-gold.xml</pre>
+<p>
+</p>
+<h2><a name="check_the_system_settings">Check the system settings</a></h2>
+<p>Query the complete rack-server configuration and state using a hierarchical query.</p>
+<pre>
+        resolve-dn --cfg=./cfg/target.cfg --dn=sys --hier &gt; target.xml</pre>
+<p>To print print the xml query/results or result counts:</p>
+<pre>
+        pretty-print --xml=target.xml --populateDn | more
+        pretty-print --populateDn --xml=target.xml | count-elements</pre>
+<p>We can use some utility scripts to harvest interesting information from the above query.</p>
+<pre>
+        mo-print --xml=target.xml --print-cfg=./print-cfg/fault.xml --format=table
+        mo-print --xml=target.xml --print-cfg=./print-cfg/inventory.xml --format=table | more
+        mo-print --xml=target.xml --print-cfg=./print-cfg/firmare.xml   --format=table | more</pre>
 <p>
 </p>
 <h2><a name="configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></h2>
@@ -128,7 +130,7 @@ This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
         post --cfg=target-server.config --xml=220M3-gold.xml</pre>
 <p>
 </p>
-<h2><a name="configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></h2>
+<h2><a name="verify_the_configuration">Verify the configuration</a></h2>
 <p>We can do the following steps to verify the configuration.</p>
 <p>Query the configured server &quot;target-server&quot; for its current bios settings:</p>
 <pre>
