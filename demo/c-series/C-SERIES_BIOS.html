@@ -52,7 +52,7 @@ configure bios tokens.</p>
 </p>
 <hr />
 <h1><a name="setup">Setup</a></h1>
-<p>We assume that you have downloaded and installed the UcsSimple-CommMgr module.
+<p>We assume that you have downloaded and installed the UcsSimple-CommMgr perl module.
 It can be downloaded from : 
     <a href="https://github.com/greygoose/UcsSimple-CommMgr">https://github.com/greygoose/UcsSimple-CommMgr</a></p>
 <p>We assume that there is a configuration script for the target c-series called 
@@ -132,11 +132,12 @@ This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
 <p>We can now use the BIOS configuration to configure other servers.</p>
 <pre>
         post --cfg=./cfg/target.cfg --xml=220M3-gold.xml</pre>
-<p>Note: If we were going to try to configure a different type model of server or a server with a
-different bios version, we should first check that it accepts the same set of bios tokens.
-We could query the bios settings of the target and golden systems and compare the results
-ucs-diff --no-vals --xml=220-M3-biosQuery.xml --xml=target-biosQuery.xml  (then manually add
-or remove settings as necessary).</p>
+<p>Note: If we were going to try to configure a different type or model of server (or a server with a
+different bios version), we should first check that it accepts the same set of bios tokens.
+We do this by querying  the bios settings of the target and golden systems and comparing the using the 
+ucs-diff script as follows:
+        ucs-diff --no-vals --xml=220-M3-biosQuery.xml --xml=target-biosQuery.xml</p>
+<p>If any differences were found, we could manually make changes.</p>
 <p>
 </p>
 <h2><a name="verify_the_configuration">Verify the configuration</a></h2>
