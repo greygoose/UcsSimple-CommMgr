@@ -1,0 +1,1280 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use XML::LibXML;
+use Getopt::Long;
+use Carp qw(croak cluck confess);
+use Log::Log4perl qw (get_logger);
+use Data::Dumper;
+use Config::Std;
+
+use UcsSimple::Session;
+use UcsSimple::CommMgr;
+use UcsSimple::XmlUtil;
+use UcsSimple::DomUtil;
+
+use constant ELEMENT_NODE => 1;
+use constant MAX_FAILURES => 10;
+use constant SLEEP_TIME => 600;
+
+$SIG{'INT'} = \&sigIntHandler;
+my $lSignalCaught = undef;
+
+my $lFailures = 0;
+my $lCookie = undef;
+my $lCfgFile = undef;
+my $lMoAttrPrintCfg = undef;
+my $lMonSet = MonitorSettings->new();
+
+my $lSpInfoMap; 
+
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+    'cfg=s'    => \$lCfgFile,      # A config file with application settings
+
+    # Standard meta-options
+    'usage'			=> sub { usage(); },
+    'help'			=> sub { usage(); },
+);
+
+
+usage() if ((!$options_okay) || (!defined($lCfgFile)));
+
+# Load our application specific settings
+my ($lConfigValid, $lConfigChanged) = 
+    loadConfig({configFile => $lCfgFile, monSettings => $lMonSet, updateDomainInfo => 1});
+
+if (!$lConfigValid)
+{
+    usage();
+}
+
+
+# Create session and communication manager
+my $lSession = UcsSimple::Session->new(
+    { userName => $lMonSet->userName(), password => $lMonSet->password(), uri => $lMonSet->uri()});
+
+my $lCommMgr = UcsSimple::CommMgr->new(
+    { session => $lSession, ssl_opts => {no_verify => 1} });
+
+$lCookie = $lCommMgr->doLogin();
+if (!defined($lCookie))
+{
+    confess "Could not get cookie";
+}
+
+
+while (($lMonSet->maxFailures() == 0) ||     
+       ($lFailures >= $lMonSet->maxFailures()))
+{
+    if ($lConfigChanged && $lConfigValid)
+    {
+        # Read in an xml file that describes what to print
+        my $lXmlSimple = XML::Simple->new();
+        $lMoAttrPrintCfg = $lXmlSimple->XMLin(
+            $lMonSet->printCfgFile(),
+            KeyAttr => {table => 'name', detail => 'name' },ForceArray => [ 'table', 'detail' ]);
+    }
+
+    if ($lMonSet->showCfgDetails())
+    {
+        printMonitorSettings({ monSet => $lMonSet });
+    }
+ 
+    $lSpInfoMap = {};
+    eval
+    {
+        # Get logical SP info
+        $lSpInfoMap = getSpInfo({dns => $lMonSet->spDns()});
+
+        # Get physical SP info
+        my $lPnDns = getPnDns({ spInfoMap => $lSpInfoMap});
+        getPhysInfo({ spInfoMap => $lSpInfoMap, dns => $lPnDns});
+    }; 
+
+    # If there was a problem communicating, we wait until the next loop.
+    if ($@)
+    {
+        $lFailures++;      
+        print "There was a problem getting the information : " . $@;
+        checkSignal();
+    }
+    else
+    {
+        checkSignal();
+
+        $lFailures=0;
+        foreach my $lSpDn (keys %{$lSpInfoMap})
+        {
+            my $lSpInfo = $lSpInfoMap->{$lSpDn};
+            # Correlate query information
+            correlateInfo({ 
+                spInfo => $lSpInfo, faultCodeMap => $lMonSet->faultCodeMap(), simMode => $lMonSet->simMode()  
+            });
+  
+            if ($lMonSet->showSpDetails())
+            { 
+                printSpInfo({ spInfo => $lSpInfo, printCfg => $lMoAttrPrintCfg });
+            }
+        }
+
+        # Print a summary table for all monitored service profiles.
+        printSummaryInfo({ spInfoMap => $lSpInfoMap });
+
+        foreach my $lSpDn (keys %{$lSpInfoMap})
+        {
+            my $lSpInfo = $lSpInfoMap->{$lSpDn};
+            if (($lSpInfo->failOver() eq 'y')) 
+            {
+                print "\n[Failing over SP : " . $lSpDn . "]\n";
+                failOverSp({ spInfo => $lSpInfo });
+            }
+        }
+    }
+
+    # Sleep until it is time for the next query
+    print "Sleeping for " . $lMonSet->sleepTime() . " seconds\n";
+    sleep($lMonSet->sleepTime());
+
+    # We should more cleverly handle this - what if retry fails
+    $lCookie = $lCommMgr->doRefresh();
+
+    print "Refreshed token [$lCookie]\n" if (defined($lCookie));
+    print "Refresh token failed \n" if (!defined($lCookie));
+
+    ($lConfigValid, $lConfigChanged) = 
+        loadConfig({configFile => $lCfgFile, monSettings => $lMonSet, updateDomainInfo => 1});
+
+    checkSignal();
+}
+
+print "\nMaximum number of failures [" .  $lFailures . "] exceeded\n";
+
+$lCommMgr->doLogout();
+exit 0;
+
+
+sub cleanupAndExit
+{
+    my ($lMsg) = @_;
+    print "Logging out\n";
+    $lCommMgr->doLogout();
+
+    get_logger(__PACKAGE__)->warn("Logging out");
+    exit  0;
+}
+
+
+sub checkSignal
+{
+    if ($lSignalCaught)
+    {
+        cleanupAndExit("Exiting because of signal");
+    }
+}
+
+
+sub sigIntHandler
+{
+    get_logger(__PACKAGE__)->warn(
+         "Caught signal - will clean up and exit");
+
+    print "Caught signal - will cleanup and exit \n";
+    $lSignalCaught = 1;
+
+}
+
+
+sub initLogging
+{
+    my ($aInLogCfgFile) = @_;
+
+    if (defined($aInLogCfgFile))
+    {
+        Log::Log4perl::init_and_watch($aInLogCfgFile, 5);
+        get_logger(__PACKAGE__)->debug(
+            "Log configuration file: $aInLogCfgFile");
+    }
+    else
+    {
+        my $lConf = q(
+            log4perl.category = DEBUG, Logfile
+            log4perl.appender.Logfile          = Log::Log4perl::Appender::File
+            log4perl.appender.Logfile.filename = debug.log
+            log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
+            log4perl.appender.Logfile.layout.ConversionPattern = [%p][%d][%F:%L] %m%n
+            log4perl.appender.Logfile.mode     = write
+            log4perl.appender.Logfile.main     = DEBUG
+        );
+        Log::Log4perl::init(\$lConf);
+        get_logger(__PACKAGE__)->debug(
+            "No log configuration file -using reasonable defaults");
+    }
+}
+
+sub printMonitorSettings
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'monSet'}))
+    {
+        confess "Missing mandator argument: monSet";
+    }
+    my $aInMonSet = $aInRefArgs->{'monSet'};
+
+    print "\n";
+    print "URI           : " . $aInMonSet->uri()  . "\n";
+    print "Max Fails     : " . $aInMonSet->maxFailures()  . "\n"; 
+    print "Sleep time    : " . $aInMonSet->sleepTime()  . "\n";
+    print "Sim Mode      : " . $aInMonSet->simMode()  . "\n";
+    print "Print SP info : " . $aInMonSet->showSpDetails()  . "\n";
+   
+    my $lRows = [];
+    foreach my $lCode (keys %{$aInMonSet->faultCodeMap()})
+    {
+       push @{$lRows}, [$lCode];
+    }
+ 
+    UcsSimple::Util::printTable(
+    {
+        rows => $lRows,
+        headings => ["Fault Codes"]
+    });
+
+    $lRows = [];
+    foreach my $lDn (@{$aInMonSet->spDns()})
+    {
+       push @{$lRows}, [$lDn];
+    }
+
+    UcsSimple::Util::printTable(
+    {
+        rows => $lRows,
+        headings => ["Service Profiles"]
+    });
+    print "\n";
+
+}
+
+ 
+
+sub printSpInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfo'}))
+    {
+        confess "Missing mandator argument: spInfo";
+    }
+    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+
+    if (!exists($aInRefArgs->{'printCfg'}))
+    {
+        confess "Missing mandator argument: printCfg";
+    }
+    my $aInPrintCfg = $aInRefArgs->{'printCfg'};
+
+    print "\nSERVICE PROFILE [" . $aInSpInfo->dn(). "]\n";
+    UcsSimple::DomUtil::printTables(
+    {
+        classElementMap=> $aInSpInfo->allClassElements(), 
+        moAttrPrintCfg => $aInPrintCfg,
+    });
+
+    # Print fault information for the service profile
+    print "\nFAULTS [" . $aInSpInfo->dn() . "]\n";
+    printFaultInfo(
+    {
+        spInfo => $aInSpInfo,
+    });
+
+}
+
+
+
+# Print out a table that summarizes candidacy and fail-over status
+# for each of our service profiles
+#
+sub printSummaryInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfoMap'}))
+    {
+        confess "Missing mandator argument: spInfoMap";
+    }
+    my $aInSpInfoMap = $aInRefArgs->{'spInfoMap'};
+
+    my $lHeadings  = [ "Service Profile", "Physical Node", "Summary", "Failed", "F/O", "Faults", "Pool" ];
+    my $lRows = []; 
+    foreach my $lSpDn (keys %{$aInSpInfoMap})
+    {
+        my $lSpInfo = $aInSpInfoMap->{$lSpDn};
+        my @lRow;
+        push @lRow, $lSpInfo->dn();
+        push @lRow, $lSpInfo->pnDn();
+        push @lRow, $lSpInfo->failOverCandidate();
+        push @lRow, $lSpInfo->failed();
+        push @lRow, $lSpInfo->failOver();
+        push @lRow, $lSpInfo->faultCount();
+        push @lRow, $lSpInfo->poolDn();
+        push @{$lRows}, \@lRow;
+    }
+    print "\n\nSUMMARY\n";
+    UcsSimple::Util::printTable(
+    {
+        rows => $lRows,
+        headings => $lHeadings,
+    });
+    print "\n";
+}
+
+
+
+sub getSpInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'dns'}))
+    {
+        confess "Missing mandator argument: dns";
+    }
+    my $aInDns = $aInRefArgs->{'dns'};
+
+    my $lSpInfoMap = {};
+
+    # Do a resolve dns query to get the sp info
+    #print "Querying service profile information\n";
+    get_logger(__PACKAGE__)->debug("Querying service profile information");
+    my ($lSuccess, $lXmlResp, $lErrHashRef) =
+        $lCommMgr->resolveDns({ dns => $aInDns, hier => 1 });
+
+    if ($lSuccess)
+    {
+        my $lXmlParser = XML::LibXML->new();
+        my $lXmlDoc = $lXmlParser->parse_string($lXmlResp);
+        UcsSimple::DomUtil::populateDn($lXmlDoc, 1);
+        my $lPnDns = [];
+        my $lFoundSpDns = {};
+
+        #print "Grab by tag\n";
+
+        my @lsServers =  $lXmlDoc->getElementsByTagName('lsServer');
+        foreach my $lsServer (@lsServers)
+        {
+            my $lDn = $lsServer->getAttribute('dn');
+            $lFoundSpDns->{$lDn} = 1;
+            # print "Current SP: $lDn\n";
+
+            # Organize results by class name (for printing out)
+            my $lSpClassElMap = UcsSimple::DomUtil::getElementsByClass($lsServer);
+
+            my $lPnDn = $lsServer->getAttribute('pnDn');
+            if (length($lPnDn) <  1)
+            {
+                $lPnDn = undef;
+            }
+
+            my $lSpInfo = SpInfo->new({
+                'dn' => $lsServer->getAttribute('dn'),
+                'pnDn' => $lPnDn,
+                'assignState' => $lsServer->getAttribute('assignState'),
+                'assocState' => $lsServer->getAttribute('assocState'),
+                'type' => $lsServer->getAttribute('type'),
+                'spClassElements' => $lSpClassElMap,
+                'foundSp' => 1,
+            });
+
+            # Pool information from lsReq
+            my @lsReqs =  $lsServer->getElementsByTagName('lsRequirement');
+            foreach my $lsReq (@lsReqs)          
+            { 
+                my $lPoolDn = $lsReq->getAttribute('pnPoolDn');
+                my $lPoolName = $lsReq->getAttribute('name');
+                if ((length $lPoolDn) > 0)
+                {
+                    $lSpInfo->poolName($lPoolName);
+                    $lSpInfo->pooled(1);
+                    $lSpInfo->poolDn($lPoolDn);
+                }
+            }
+
+            $lSpInfo->spClassElements($lSpClassElMap);
+            $lSpInfoMap->{$lDn} = $lSpInfo;
+        }
+
+        # Add a dummy record for SPs that were not found.
+        foreach my $lSpDn (@{$aInDns})
+        {
+            if (!(exists $lFoundSpDns->{$lSpDn}))
+            {
+                my $lSpInfo = SpInfo->new({
+                    'dn' => $lSpDn,
+                }); 
+                $lSpInfoMap->{$lSpDn} = $lSpInfo;
+            }
+        }
+    }
+
+    return $lSpInfoMap;
+}
+
+
+
+# Just simple method to get all the pnDns that are defined  
+sub getPnDns
+{ 
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfoMap'}))
+    {
+        confess "Missing mandator argument: spInfoMap";
+    }
+    my $aInSpInfoMap = $aInRefArgs->{'spInfoMap'};
+
+    my $lPnDns = [];
+    foreach my $lSpDn (keys %{$aInSpInfoMap})
+    {
+        my $lSpInfo = $aInSpInfoMap->{$lSpDn};
+        my $lPnDn = $lSpInfo->pnDn();
+        if (defined($lPnDn))
+        { 
+            push @{$lPnDns}, $lPnDn;
+        }
+    }
+    return $lPnDns;
+}
+
+
+
+sub getPhysInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfoMap'}))
+    {
+        confess "Missing mandator argument: spInfoMap";
+    }
+    my $aInSpInfoMap = $aInRefArgs->{'spInfoMap'};
+
+    if (!exists($aInRefArgs->{'dns'}))
+    {
+        confess "Missing mandator argument: dns";
+    }
+    my $aInDns = $aInRefArgs->{'dns'};
+
+    if (@{$aInDns} > 0) 
+    {
+        # print "Querying for physical information\n";
+        get_logger(__PACKAGE__)->debug("Querying physical information");
+
+        my ($lSuccess, $lXmlResp, $lErrHashRef) =
+            $lCommMgr->resolveDns({ dns => $aInDns, hier => 1 });
+
+        if ($lSuccess)
+        {
+            my $lXmlParser = XML::LibXML->new();
+            my $lXmlDoc = $lXmlParser->parse_string($lXmlResp);
+            UcsSimple::DomUtil::populateDn($lXmlDoc, 1);
+
+            my @lBlades =  $lXmlDoc->getElementsByTagName('computeBlade');
+            foreach my $lBlade (@lBlades)
+            {
+                my $lDn = $lBlade->getAttribute('dn');
+                # Organize results by class name (for printing out)
+                my $lPhysClassElMap = UcsSimple::DomUtil::getElementsByClass($lBlade);
+                my $lSpDn = $lBlade->getAttribute('assignedToDn');
+                if (exists $aInSpInfoMap->{$lSpDn})
+                {
+                    my $lSpInfo = $aInSpInfoMap->{$lSpDn};
+                    $lSpInfo->physClassElements($lPhysClassElMap);
+                    $lSpInfo->physClass("computeBlade");
+                    $lSpInfo->foundPhys(1);
+                }
+            }
+            my @lRackUnits =  $lXmlDoc->getElementsByTagName('computeRackUnit');
+            foreach my $lRackUnit (@lRackUnits)
+            {
+                my $lDn = $lRackUnit->getAttribute('dn');
+                print "Current rack unit: $lDn\n";
+                # Organize results by class name (for printing out)
+                my $lPhysClassElMap = UcsSimple::DomUtil::getElementsByClass($lRackUnit);
+                my $lSpDn = $lRackUnit->getAttribute('assignedToDn');
+                if (exists $aInSpInfoMap->{$lSpDn})
+                {
+                    my $lSpInfo = $aInSpInfoMap->{$lSpDn};
+                    $lSpInfo->physClassElements($lPhysClassElMap);
+                    $lSpInfo->physClass("computeRackUnit");
+                    $lSpInfo->foundPhys(1);
+                }
+            }
+        }
+        else
+        {
+            print "Failed to get physical h/w inventory\n";
+            get_logger(__PACKAGE__)->debug("Failed to get physical h/w inventory");
+        }
+    }
+    else
+    {
+        # print "No physical h/w to query \n";
+        get_logger(__PACKAGE__)->debug("No physical h/w to query");
+    }
+}
+
+
+
+sub correlateInfo 
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfo'}))
+    {
+        confess "Missing mandator argument: spInfo";
+    }
+    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+
+    if (!exists($aInRefArgs->{'faultCodeMap'}))
+    {
+        confess "Missing mandator argument: faultCodeMap";
+    }
+    my $aInFaultCodeMap = $aInRefArgs->{'faultCodeMap'};
+
+    my $aInSimMode = $aInRefArgs->{'simMode'};
+
+    my $lSpDn = $aInSpInfo->dn();
+    my $lIsFailOverCandidate = 1;
+    my $lFailed = 0;
+    my $lSummary = "";
+
+    if (!$aInSpInfo->foundSp())
+    {
+        get_logger(__PACKAGE__)->debug( "No information for service profile - will not fail-over [$lSpDn]");
+        # print "No logical information for service profile: " . $lSpDn . "\n";
+        # print "Will not fail over service profile: " . $lSpDn . "\n";
+        $lSummary = "sp-not-found";
+        $lIsFailOverCandidate = 0;
+    }
+
+    if ($lIsFailOverCandidate && ($aInSpInfo->type() !~ /instance/))
+    {
+        get_logger(__PACKAGE__)->debug( "Service profile not an instance - will not fail-over [$lSpDn]");
+        # print "Service profile not an instance : " . $aInSpInfo->type() . "\n";
+        # print "Will not fail over service profile: " . $lSpDn . "\n";
+        $lSummary = "not-instance";
+        $lIsFailOverCandidate = 0;
+    }
+
+    if ($lIsFailOverCandidate && (!$aInSpInfo->foundPhys()))
+    {
+        get_logger(__PACKAGE__)->debug( "No physical information for service profile - will not fail-over [$lSpDn]");
+        #print "No physical information for service profile: " . $lSpDn . "\n";
+        #print "Will not fail over service profile: " . $lSpDn . "\n";
+        $lSummary = "phys-not-found";
+        $lIsFailOverCandidate = 0;
+    }
+
+    if ($lIsFailOverCandidate && ($aInSpInfo->assignState() !~ /assigned/))
+    {
+        get_logger(__PACKAGE__)->debug( "Service profile not assigned - will not fail-over [$lSpDn]");
+        # print "Service profile not assigned : " . $aInSpInfo->assignState() . "\n";
+        # print "Will not fail over service profile: " . $lSpDn . "\n";
+        $lSummary = "phys-not-found";
+        $lIsFailOverCandidate = 0;
+    }
+
+    if ($lIsFailOverCandidate && ($aInSpInfo->assocState() !~ /associated/))
+    {
+        get_logger(__PACKAGE__)->debug( "Service profile not associated - will not fail-over [$lSpDn]");
+        # print "Service profile not associated : " . $aInSpInfo->assocState() . "\n";
+        # print "Will not fail over service profile: " . $lSpDn . "\n";
+        $lSummary = "not-associated";
+        $lIsFailOverCandidate = 0;
+    }
+
+    if ($lIsFailOverCandidate && (!$aInSpInfo->pooled()))
+    {
+        get_logger(__PACKAGE__)->debug( "Service profile not pooled - will not fail-over [$lSpDn]");
+        # print "Service profile not pooled : " . $aInSpInfo->pooled() . "\n";
+        # print "Will not fail over service profile: " . $lSpDn . "\n";
+        $lSummary = "not-pooled";
+        $lIsFailOverCandidate = 0;
+    }
+
+    if ($lIsFailOverCandidate && 
+       (!defined($aInSpInfo->poolName()) || length($aInSpInfo->poolName()) == 0))
+    {
+        get_logger(__PACKAGE__)->debug( "Service profile not pooled - will not fail-over [$lSpDn]");
+        # print "Could not determine compute pool name : " . $aInSpInfo->poolName() . "\n";
+        # print "Will not fail over service profile: " . $lSpDn . "\n";
+        $lSummary = "unknown-pool";
+        $lIsFailOverCandidate = 0;
+    }
+
+    # We will just print a warning if there are not servers in the pool
+    # We will still fail-over if necessary.
+    if ($lIsFailOverCandidate && 
+       (defined($aInSpInfo->availPhysInPool()) && 
+       ($aInSpInfo->availPhysInPool() < 1)))
+    {
+        get_logger(__PACKAGE__)->debug( "Compute pool has not physical resources for [$lSpDn]");
+        # print "Compute pool has no physical resources : " . $aInSpInfo->poolDn() . "\n";
+        $lSummary = "pool-empty";
+    }
+
+    $lFailed = isHardwareFailed({ 
+        spDn => $lSpDn, 
+        spInfo => $aInSpInfo,
+        faultCodeMap => $aInFaultCodeMap,
+    });
+
+    if ((!$lFailed) && $aInSimMode)
+    {
+        $lFailed = isSimFailure({ 
+            spDn => $lSpDn, 
+            spInfo => $aInSpInfo,
+            faultCodeMap => $aInFaultCodeMap,
+        });
+    }
+   
+    my $lFailOver = ($lIsFailOverCandidate && $lFailed); 
+
+    if ($lFailOver)
+    {
+        get_logger(__PACKAGE__)->debug( "Hardware fail-over condition met for [$lSpDn]");
+        print "Compute fail-over condition met for : " . $aInSpInfo->poolDn() . "\n";
+    }
+
+    $aInSpInfo->failed($lFailed ? 'y' : 'n'); 
+    $aInSpInfo->failOver($lFailOver ? 'y' : 'n'); 
+    $aInSpInfo->failOverCandidate($lIsFailOverCandidate ? 'y' : 'n'); 
+    $aInSpInfo->candidateInfo($lSummary);
+}
+
+
+
+# 
+# Fatal h/w failure
+#
+sub isHardwareFailed
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfo'}))
+    {
+        confess "Missing mandator argument: spInfo";
+    }
+    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+
+    if (!exists($aInRefArgs->{'faultCodeMap'}))
+    {
+        confess "Missing mandator argument: faultCodeMap";
+    }
+    my $aInFaultCodeMap = $aInRefArgs->{'faultCodeMap'};
+
+    my $lFatalFaults = [];
+    my $lFailed = 0;
+    foreach my $lFault (@{$aInSpInfo->faults()})
+    {
+        my $lCode = $lFault->getAttribute("code");
+        if (exists $aInFaultCodeMap->{$lCode})
+        {
+                $lFailed = 1;
+                push @{$lFatalFaults}, $lFault;
+        }
+    }
+
+    # Update SP with fatal faults
+    $aInSpInfo->fatalFaults($lFatalFaults);
+
+    return $lFailed;
+}
+
+
+# 
+# Is this a simulated failure
+#
+sub isSimFailure
+{
+    my ($aInRefArgs) = @_;
+    my $lFailed = 0;
+
+    if (!exists($aInRefArgs->{'spInfo'}))
+    {
+        confess "Missing mandator argument: spInfo";
+    }
+    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+
+    my $lPhysClass = $aInSpInfo->physClass();
+
+    if (defined($lPhysClass))
+    {
+        my $lPhysClassElementMap = $aInSpInfo->physClassElements(); 
+
+        if (exists $lPhysClassElementMap->{$lPhysClass})
+        {
+            foreach my $lPhys (@{$lPhysClassElementMap->{$lPhysClass}})
+            {
+                my $lDesc = $lPhys->getAttribute('usrLbl');
+                if (defined($lDesc)  && ($lDesc =~ /SIM FAILURE/))
+                {
+                    $lFailed = 1;
+                }
+            }
+        }
+    }
+    return $lFailed;
+}
+
+
+
+sub printFaultInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfo'}))
+    {
+        confess "Missing mandator argument: spInfo";
+    }
+    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+
+    my %lFatalFaults = map {$_ => 1 } @{$aInSpInfo->fatalFaults()};
+
+    my $lAllFaults = [];
+    foreach my $lFault (@{$aInSpInfo->faults()})
+    {
+        my $lRow = [];
+        my $lCode = $lFault->getAttribute("code");
+        my $lFatal = (exists $lFatalFaults{$lCode}) ? 'y' : 'n';
+        push @{$lRow}, $lFault->getAttribute("id");
+        push @{$lRow}, $lFault->getAttribute("severity");
+        push @{$lRow}, $lCode;
+        push @{$lRow}, $lFatal;
+        push @{$lRow}, $lFault->getAttribute("lastTransition");
+        push @{$lRow}, $lFault->getAttribute("descr");
+        push @{$lAllFaults}, $lRow;
+    }
+
+    UcsSimple::Util::printTable({
+        rows => $lAllFaults,
+        headings => [ qw / ID Severity Code Fatal LastTransition Description / ],
+    });
+
+}
+
+
+# 
+# Fail over the service profile
+# We search for memory faults in the list of faults
+#
+sub failOverSp
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfo'}))
+    {
+        confess "Missing mandator argument: spInfo";
+    }
+    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+    my $lSpDn = $aInSpInfo->dn();
+
+    print "Failing over server \n";
+    my $lPnClass = $aInSpInfo->physClass();
+    my $lPnDn =  $aInSpInfo->pnDn();
+
+    # Decomission the blade - so that it is not subsequently used;
+    print qq /Decommissioning server: [$lPnDn][$lSpDn]/ . "\n";
+
+    my $lXmlRequest = UcsSimple::XmlUtil::getComputeLcXml(
+    {
+        "lc" => 'decommission',
+        class => $aInSpInfo->physClass(),
+        dn => $aInSpInfo->pnDn()
+    });
+
+    my ($lSuccess, $lContent, $lErrHashRef) =
+        $lCommMgr->doPostXML({ postData => $lXmlRequest});
+
+    if ($lSuccess)
+    {
+        # Manually remove requirement (this should be quicker than waiting for system)
+        print qq /Deleting the requirement : [$lSpDn]/ . "\n";
+        $lXmlRequest = UcsSimple::XmlUtil::getDeleteXml(
+        {
+            dn => ($lSpDn . "/ls-req"),
+            class => "lsRequirement"
+        });
+
+        ($lSuccess, $lContent, $lErrHashRef) =
+            $lCommMgr->doPostXML({ postData => $lXmlRequest});
+
+        if ($lSuccess)
+        {
+            # TODO: GET THE POOL NAME
+            my $lPoolName = "";
+            print qq (Creating the requirement : [$lSpDn/ls-req]) . "\n";
+            $lXmlRequest = UcsSimple::XmlUtil::getSimpleCreateXml({
+               dn => ($lSpDn . "/ls-req"),
+               class => "lsRequirement",
+               attrMap => {name => "$lPoolName"}
+            });
+
+            ($lSuccess, $lContent, $lErrHashRef) =
+                $lCommMgr->doPostXML({ postData => $lXmlRequest});
+
+            if (!$lSuccess)
+            { 
+                print qq (Failed to create the requirement : [$lSpDn/ls-req]) . "\n";
+                get_logger(__PACKAGE__)->debug( "Failed to create the requirement for [$lSpDn]");
+            }
+        }
+        else
+        {
+            print qq (Failed to delete the requirement : [$lSpDn/ls-req]) . "\n";
+            get_logger(__PACKAGE__)->debug( "Failed to delete the requirement for [$lSpDn]");
+        }
+    }
+    else
+    {
+        print "Failed to decomission physical : $lPnDn\n";
+        get_logger(__PACKAGE__)->debug( "Failed to decomission phys [$lPnDn][$lSpDn]");
+    }
+
+}
+
+
+{
+    package MonitorSettings;
+    use UcsSimple::Util;
+    use Carp qw(croak cluck confess);
+    use Log::Log4perl qw (get_logger);
+
+    use Data::Dumper;
+    use Class::MethodMaker
+        [ 
+            scalar => [ qw/ uri userName password init maxFailures sleepTime printCfgFile faultCodeMap spDns simMode epochTimeStamp logCfgFile showSpDetails showCfgDetails / ],
+        ];
+
+    sub new 
+    {
+        my ($aInClass, $aInRefArgs) = @_;
+        my $self = {};
+        bless $self, $aInClass;
+
+        $self->init(0);
+        $self->maxFailures(0);
+        $self->sleepTime(0);
+        $self->simMode(0);
+        $self->spDns([]);
+        $self->faultCodeMap({});
+        $self->epochTimeStamp(0);
+
+        foreach my $lName ( qw/ uri userName password maxFailures sleepTime printCfgFile faultCodeMap spDns simMode epochTimeStamp logCfgFile showSpDetails showCfgDetails  /)
+        {
+            if (exists $aInRefArgs->{$lName})
+            {
+                $self->$lName($aInRefArgs->{$lName});
+            }
+        }
+        return $self;
+    }
+}
+
+sub loadConfig
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'configFile'}))
+    {
+        confess "Missing mandator argument: configFile";
+    }
+    my $aInCfgFile = $aInRefArgs->{'configFile'};
+
+    if (!exists($aInRefArgs->{'monSettings'}))
+    {
+        confess "Missing mandator argument: monSettings";
+    }
+    my $aInMonSettings = $aInRefArgs->{'monSettings'};
+
+    my $aInUpdateDomainInfo = $aInRefArgs->{'updateDomainInfo'};
+    my $aInForce = $aInRefArgs->{'force'};
+
+    my $lValid = 1; 
+    my $lChanged = 0;
+    my $lEpochTimeStamp = (stat($aInCfgFile))[9];
+    if (-r $aInCfgFile)
+    {
+        my $lEpochTimeStamp = (stat($aInCfgFile))[9];
+        if ($lEpochTimeStamp != $aInMonSettings->epochTimeStamp())
+        {
+            $lChanged = 1;
+            print "Refreshing configuration settings\n"; 
+            $aInMonSettings->epochTimeStamp($lEpochTimeStamp);
+        }
+    }
+    else
+    {
+        get_logger(__PACKAGE__)->info("Config file error: not present/readable"); 
+        print "Config file error: file not present/readable: " . $aInCfgFile . "\n";
+        $lValid = 0; 
+    }
+
+    # Only if force specified or file has changed.
+    if ($lValid && ($aInForce || $lChanged))
+    {
+        $lChanged = 1;
+        my $lConfig = undef;
+        read_config($aInCfgFile => $lConfig);
+
+        if ($aInMonSettings->init() == 0) 
+        {
+            my $lLogCfgFile = $lConfig->{'APP'}->{'LOG4PERL'}; 
+            if (($lLogCfgFile) && (-r $lLogCfgFile))
+            {
+                $aInMonSettings->logCfgFile($lLogCfgFile); 
+            }
+            else
+            { 
+                print "Config file error: log config file not present/readable \n";
+                $lValid = 0; 
+            }
+            initLogging($lLogCfgFile);
+        }
+
+        # Default is not to update domain info the first time through.
+        if ($aInUpdateDomainInfo)
+        {
+            my $lUri = $lConfig->{'UCS'}->{'URI'}; 
+            my $lUname = $lConfig->{'UCS'}->{'UNAME'}; 
+            my $lPasswd = $lConfig->{'UCS'}->{'PASSWORD'};
+    
+            if (!defined($lUri))
+            {
+                get_logger(__PACKAGE__)->info("Config file error: No uri specified"); 
+                print "Config file error: No uri specified\n"; 
+                $lValid = 0; 
+            }
+            else
+            {
+                $aInMonSettings->uri($lUri);
+            }
+
+            if (!defined($lUname))
+            {
+                get_logger(__PACKAGE__)->info("Config file error: No username specified"); 
+                print "Config file error: No username specified\n"; 
+                $lValid = 0; 
+            } 
+            else
+            {
+                $aInMonSettings->userName($lUname);
+            }
+    
+            if (!defined($lPasswd))
+            {
+                get_logger(__PACKAGE__)->info("Config file error: No password specified"); 
+                print "Config file error: No password specified\n"; 
+                $lValid = 0; 
+            }
+            else
+            {
+                $aInMonSettings->password($lPasswd);
+            }
+        }
+
+
+        my $lFaultCodes = $lConfig->{'APP'}->{'FAULT_CODE'};
+        my $lSpDns = $lConfig->{'APP'}->{'SP_DN'};
+        my $lSimMode = $lConfig->{'APP'}->{'SIM_MODE'};
+        my $lPrintCfgFile = $lConfig->{'APP'}->{'PRINT_CFG'};
+        my $lMaxFailures = $lConfig->{'APP'}->{'MAX_FAILURES'}; 
+        my $lSleepTime = $lConfig->{'APP'}->{'SLEEP_TIME'}; 
+        my $lShowSpDetails = $lConfig->{'APP'}->{'SHOW_SP_DETAILS'}; 
+        my $lShowCfgDetails = $lConfig->{'APP'}->{'SHOW_CFG_DETAILS'}; 
+
+        if (!defined($lFaultCodes))
+        {
+            get_logger(__PACKAGE__)->info("Config file error: No fault codes specified"); 
+            print "Config file error: No fault codes specified\n"; 
+            $lValid = 0; 
+        }
+        else
+        {
+            my %lFaultMap = map {$_ => 1 } @{$lFaultCodes};
+            $aInMonSettings->faultCodeMap(\%lFaultMap);
+        }
+
+        if (!defined($lSpDns))
+        {
+            get_logger(__PACKAGE__)->info("Config file error: No service profiles codes specified"); 
+            print "Config file error: No service profiles specified\n"; 
+            $lValid = 0; 
+        }
+        else
+        {
+            $aInMonSettings->spDns($lSpDns);
+        }
+    
+        if (defined($lSimMode) && ($lSimMode)) 
+        {
+           $aInMonSettings->simMode(1);
+        }
+        else
+        {
+            $aInMonSettings->simMode(0);
+        }
+
+        if (!defined($lMaxFailures))
+        {
+           $lMaxFailures = MAX_FAILURES;
+        }
+        if (!UcsSimple::Util::is_integer($lMaxFailures)) 
+        {
+            print "\n" . $lMaxFailures . "\n";
+            get_logger(__PACKAGE__)->info("Config file error max failures invalid");
+            print "Config file error: max failures is invalid \n";
+            $lValid = 0; 
+        }
+        else
+        {
+            $aInMonSettings->maxFailures($lMaxFailures);
+        }
+
+        if (!defined($lSleepTime))
+        {  
+            $lSleepTime = SLEEP_TIME;
+        }
+        if (!UcsSimple::Util::is_integer($lSleepTime)) 
+        {
+            get_logger(__PACKAGE__)->info("Config file error: sleep time invalid");
+            print "Config file error: sleep time is invalid\n"; 
+            $lValid = 0; 
+        }
+        else
+        {
+            $aInMonSettings->sleepTime($lSleepTime);
+        }
+
+
+        if (($lPrintCfgFile) && (-r $lPrintCfgFile))
+        { 
+            $aInMonSettings->printCfgFile($lPrintCfgFile); 
+        }
+        else
+        { 
+            get_logger(__PACKAGE__)->info("Config file error: print config file not present/readable "); 
+            print "Config file error: print config file not present/readable \n";
+            $lValid = 0; 
+        }
+
+        if (!defined($lShowSpDetails))
+        {  
+            $lShowSpDetails = 1;
+        }
+        $aInMonSettings->showSpDetails($lShowSpDetails); 
+
+        if (!defined($lShowCfgDetails))
+        {  
+            $lShowCfgDetails = 1;
+        }
+        $aInMonSettings->showCfgDetails($lShowCfgDetails); 
+
+    } 
+    return ($lValid, $lChanged);
+}
+
+
+
+{
+    package SpInfo;
+    use Carp qw(croak cluck confess);
+
+    use Data::Dumper;
+    use Class::MethodMaker
+        [ 
+            scalar => [ qw/ dn assignState assocState type pooled poolName poolDn foundSp foundPhys pnDn physClass availPhysInPool failOverCandidate candidateInfo failOver failed / ],
+        ];
+
+    sub new 
+    {
+        my ($aInClass, $aInRefArgs) = @_;
+        my $self = {};
+        bless $self, $aInClass;
+        
+        # Set our class element map to an empty map ref;
+        $self->foundSp(0);
+        $self->foundPhys(0);
+        $self->failed('n');
+        $self->failOverCandidate('n');
+        $self->candidateInfo("");
+        $self->failOver("n");
+        $self->faultCount(0);
+        $self->type("");
+        $self->{spClassElements} = {};
+        $self->{physClassElements} = {};
+        $self->{allClassElements} = {};
+        $self->{faults} = [];
+        $self->{fatalFaults} = {};
+
+        if (!(exists $aInRefArgs->{'dn'}))
+        {
+            confess "Missing mandatory argument: dn";
+        }
+
+        foreach my $lName ( qw/ dn assignState assocState type pooled poolName poolDn foundSp foundPhys pnDn availPhysInPool failOverCandidate candidateInfo failOver failed physClass / )
+        {
+            if (exists $aInRefArgs->{$lName})
+            {
+                $self->$lName($aInRefArgs->{$lName});
+            }
+        }
+        $self->updateElements();
+        return $self;
+    }
+
+
+    sub spClassElements
+    {
+        my ($self, $aInClassElementMap) = @_;
+        ref ($self) or confess "Instance required";
+
+        if (defined($aInClassElementMap))
+        {
+            $self->{'spClassElements'} = $aInClassElementMap;
+            $self->updateElements(); 
+        }
+        return $self->{'spClassElements'};
+    }
+
+
+    sub physClassElements
+    {
+        my ($self, $aInClassElementMap) = @_;
+        ref ($self) or confess "Instance required";
+
+        if (defined($aInClassElementMap))
+        {
+            $self->{'physClassElements'} = $aInClassElementMap;
+            $self->updateElements(); 
+        }
+        return $self->{'physClassElements'};
+    }
+
+    sub fatalFaults
+    {
+        my ($self, $aInFatalFaultArrayRef) = @_;
+        ref ($self) or confess "Instance required";
+
+        if (defined($aInFatalFaultArrayRef))
+        {
+            $self->{'fatalFaults'} = $aInFatalFaultArrayRef;
+        }
+        return $self->{'fatalFaults'};
+    }
+
+    sub faults
+    {
+        my ($self) = @_;
+        ref ($self) or confess "Instance required";
+        return $self->{'faults'};
+    }
+
+    sub faultCount
+    {
+        my ($self, $aInClassElementMap) = @_;
+        ref ($self) or confess "Instance required";
+        return $self->{'faultCount'};
+    }
+
+    sub allClassElements
+    {
+        my ($self, $aInClassElementMap) = @_;
+        ref ($self) or confess "Instance required";
+        return $self->{'allClassElements'};
+    }
+
+
+    sub updateElements 
+    {
+        my ($self, $aInClassElementMap) = @_;
+        ref ($self) or confess "Instance required";
+
+        my $lAllClassElementMap = {};
+        my $lPhysElements = $self->physClassElements();
+        foreach my $lClass (keys %{$lPhysElements})
+        {
+            if (!exists $lAllClassElementMap->{$lClass}) 
+            {
+                $lAllClassElementMap->{$lClass} = [];
+            }
+            foreach my $lElement (@{$lPhysElements->{$lClass}})
+            {
+                push @{$lAllClassElementMap->{$lClass}}, $lElement;
+            }
+        }
+
+        my $lSpElements = $self->spClassElements();
+        foreach my $lClass (keys %{$lSpElements})
+        {
+            if (!exists $lAllClassElementMap->{$lClass}) 
+            {
+                $lAllClassElementMap->{$lClass} = [];
+            }
+            foreach my $lElement (@{$lSpElements->{$lClass}})
+            {
+                push @{$lAllClassElementMap->{$lClass}}, $lElement;
+            }
+        }
+        $self->{'allClassElements'} = $lAllClassElementMap;
+
+        my $lFaultCount = 0;
+        my $lFaults = [];
+        if (exists $lAllClassElementMap->{'faultInst'})
+        {
+            foreach my $lFault (@{$lAllClassElementMap->{"faultInst"}})
+            {
+                push @{$lFaults}, $lFault;
+                $lFaultCount++; 
+            }
+        }
+        $self->{faults} = $lFaults;
+        $self->{faultCount} = $lFaultCount;
+    }
+
+
+    sub toString
+    {
+        my ($self) = @_;
+        ref ($self) or confess "Instance required";
+
+        my $lOut = "";
+        foreach my $lName ( qw/ dn assignState assocState type pooled poolName poolDn foundSp foundPhys pnDn physClass availPhysInPool failOverCandidate failed failOver candidateInfo / )
+        {
+            if (exists $self->{$lName})
+            {
+                $lOut .= qq/ $lName=$self->$lName()/;
+            }
+        }
+        return $lOut;
+    }
+
+}
+
+
+
+# Print usage message.
+sub usage
+{
+    print "For usage information:\n";
+    print "\n\tperldoc monitor-sp\n\n";
+    exit;
+}
+
+
+
+
+
+

@@ -234,6 +234,118 @@ sub promptUser {
 }
 
 
+# Get field widths for a table based on largest entry for each column.
+# rows - ref to array of maps.  One map for each row with property name as key
+# headings - (parallel) reference to array property headings
+sub getFieldWidths
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'rows'}))
+    {
+        confess "Missing mandator argument: rows";
+    }
+    my $aInRows = $aInRefArgs->{'rows'};
+
+    if (!exists($aInRefArgs->{'headings'}))
+    {
+        confess "Missing mandator argument: headings";
+    }
+    my $aInHeadings = $aInRefArgs->{'headings'};
+
+    my $lFieldWidths = [];
+
+    # Go through every attribute of each class that we have to print out and determine its fieldwidth
+    my $lRowNum = 0;
+
+    # Get width of headings (even if no rows of data)
+    for my $lIdx (0..(@{$aInHeadings} -1))
+    {
+        my $lHeading = $aInHeadings->[$lIdx];
+        $lFieldWidths->[$lIdx] = length($lHeading);
+    }
+
+    # Get width of longest field entry
+    foreach my $lRow (@{$aInRows})
+    {
+        if (@{$lRow} != (@{$aInHeadings}))
+        {
+            confess "Number of columns not equal to number of headings";
+        }
+        for my $lIdx (0..(@{$lRow} -1))
+        {
+            my $lValue = $lRow->[$lIdx];
+            my $lCurrLength = (defined($lValue)) ? length ($lValue) : 0;
+            my $lMaxLength = $lFieldWidths->[$lIdx];
+            $lFieldWidths->[$lIdx] = ($lCurrLength > $lMaxLength) ?
+                $lCurrLength : $lMaxLength;
+        }
+    }
+
+    return $lFieldWidths;
+}
+
+
+# Print a table
+# rows - ref to array of maps.  One map for each row with property name as key.
+# headings - (parallel) reference to array property headings.
+# fieldWidths - (optional) ref to a map indexed by property name with values the width of the field.
+sub printTable
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'rows'}))
+    {
+        confess "Missing mandator argument: rows";
+    }
+    my $aInRows = $aInRefArgs->{'rows'};
+
+    if (!exists($aInRefArgs->{'headings'}))
+    {
+        confess "Missing mandator argument: headings";
+    }
+    my $aInHeadings = $aInRefArgs->{'headings'};
+
+    my $lFw;
+    if (!exists($aInRefArgs->{'fieldWidths'}))
+    {
+        $lFw = getFieldWidths({
+            rows => $aInRows,
+            headings => $aInHeadings,
+        });
+    }
+    else
+    {
+        $lFw = $aInRefArgs->{'fieldWidths'};
+    }
+
+    for my $lIdx (0..(@{$aInHeadings} -1))
+    {
+        print UcsSimple::Util::getPad($aInHeadings->[$lIdx], $lFw->[$lIdx]);
+        print "   ";
+    }
+    print "\n";
+
+    # Print out table row by row
+    my $lRowNum = 0;
+    foreach my $lRow (@{$aInRows})
+    {
+        if (@{$lRow} != (@{$aInHeadings}))
+        {
+            confess "Number of columns not equal to number of headings";
+        }
+
+        for my $lIdx (0..(@{$lRow} -1))
+        {
+            my $lValue = $lRow->[$lIdx];
+            print UcsSimple::Util::getPad($lRow->[$lIdx], $lFw->[$lIdx]);
+            print "   ";
+         }
+         print "\n";
+    }
+}
+
+
 
 1; 
 
@@ -375,6 +487,31 @@ Convert uuid to a 64 bit long.
 Convert 64 bit long to a string uuid address.
 
 
+
+=head2 getFieldWidths
+
+Get field widths for a table based on largest entry for each column.
+The rows parameter is a reference to an array of arrays (one for each row).
+The headings parameter is a parallel references to the headings.
+
+    getFieldWidths({
+        rows => [ [0030], [0045] ],
+        headings => ["Fault Codes"]
+    });
+
+
+=head2 printTable
+
+Print a table with the passed arguments.  
+The rows parameter is a reference to an array of arrays (one for each row).
+The parameter is a parallel references to the headings.
+The fieldwidths is an (optional) parallel reference to the width of each column.  
+
+    UcsSimple::Util::printTable(
+    {
+        rows => [ [0030], [0045] ],
+        headings => ["Fault Codes"]
+    });
 
 
 =head1 AUTHOR

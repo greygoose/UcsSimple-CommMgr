@@ -14,7 +14,6 @@ use XML::Simple;
 
 use constant ELEMENT_NODE => 1;
 
-
 my $lXmlFile = undef;
 my $lMoPrintFile = undef;
 my $lFormat = "dn-only";
@@ -85,22 +84,14 @@ if (($lFormat eq "table") || ($lFormat eq "detail"))
 
 if ($lFormat eq "table")
 {
-    my $lClassElementMap = {};
-    UcsSimple::DomUtil::visit(
-        $lXmlDoc, 
-        [
-            UcsSimple::DomUtil::getFieldWidthCb($lFieldWidthMap), 
-            UcsSimple::DomUtil::getElementByClassCb($lClassElementMap), 
-        ]
-    );
+    my $lClassElementMap = UcsSimple::DomUtil::getElementsByClass($lXmlDoc);
 
     # Now we have elements conveniently organized (print them out)
     my $lFormat = undef;
-    printTable(
+    UcsSimple::DomUtil::printTables(
     {
         classElementMap=>$lClassElementMap,
         moAttrPrintCfg=> $lMoAttrPrintCfg, 
-        fwMap => $lFieldWidthMap,
         classes => $lClassMap,
     });
     if ($lIncStats)
@@ -116,13 +107,8 @@ if ($lFormat eq "table")
 }
 else 
 {
-    my $lDnElementMap = {};
-    UcsSimple::DomUtil::visit(
-        $lXmlDoc, 
-        [
-            UcsSimple::DomUtil::getElementByDnCb($lDnElementMap),
-        ]
-    );
+    my $lDnElementMap = UcsSimple::DomUtil::getElementsByDn($lXmlDoc);
+
     # Now we have elements conveniently organized (print them out)
     printDetail( 
     {
@@ -144,111 +130,6 @@ sub levelSort
     return ($lLevelA <=> $lLevelB);
 }
 
-
-
-sub printTable
-{
-    my ($aInRefArgs) = @_;
-
-    if (!exists($aInRefArgs->{'classElementMap'}))
-    {
-        confess "Missing mandator argument: classElementMap";
-    }
-    my $aInClassElementMap = $aInRefArgs->{'classElementMap'};
-
-    if (!exists($aInRefArgs->{'fwMap'}))
-    {
-        confess "Missing mandator argument: fwMap";
-    }
-    my $aInFwMap= $aInRefArgs->{'fwMap'};
-
-    if (!exists($aInRefArgs->{'moAttrPrintCfg'}))
-    {
-        confess "Missing mandator argument: moAttrPrintCfg";
-    }
-    my $aInMoAttrPrintCfg = $aInRefArgs->{'moAttrPrintCfg'};
-
-    my $aInClassMap = undef;
-    if (exists($aInRefArgs->{'classes'}))
-    {
-        $aInClassMap= $aInRefArgs->{'classes'};
-    }
-
-    foreach my $lClass (sort keys %{$aInClassElementMap})
-    {
-        if (((!defined($aInClassMap)) || (exists $aInClassMap->{$lClass})) &&
-          (exists $aInMoAttrPrintCfg->{'table'}->{$lClass}))
-        {
-            print "\n[" . $lClass . "]\n";
-            my $lFieldWidths = {};
-
-            foreach my $lPropRef (@{$aInMoAttrPrintCfg->{table}->{$lClass}->{'property'}})
-            {
-                # Update fieldwidth based on heading!
-                my $lPropName = $lPropRef->{'propName'};
-                my $lLabel = $lPropRef->{'label'};
-
-                if (exists $lPropRef->{'colWidth'})
-                {
-                    $lFieldWidths->{$lPropName} = $lPropRef->{'colWidth'};
-                }
-                else
-                {
-                    my $lFw = 0;
-                    if (!isSpecialProp($lPropName))
-                    {
-                        $lFw = exists($aInFwMap->{$lClass}->{$lPropName}) ?
-                            $aInFwMap->{$lClass}->{$lPropName} : 0;
-                    }
-                    else
-                    {
-                        # Special - must resolve based on class
-                        my ($lPre, $lChildClass, $lChildProp) = split(/:/, $lPropName);
-                        $lFw = exists($aInFwMap->{$lChildClass}->{$lChildProp}) ?
-                            $aInFwMap->{$lChildClass}->{$lChildProp} : 0;
-                    }
-
-                    my $lHeadWidth = length($lLabel);
-                    $lFieldWidths->{$lPropName} = 
-                        ($lFw > $lHeadWidth) ? $lFw : $lHeadWidth;
-                }
-                print UcsSimple::Util::getPad($lLabel, $lFieldWidths->{$lPropName});
-                print "   ";
-            }
-
-            print "\n";
-
-            foreach my $lElement (@{$aInClassElementMap->{$lClass}})
-            {
-                # Print table row
-                foreach my $lPropRef (@{$aInMoAttrPrintCfg->{table}->{$lClass}->{'property'}})
-                {
-
-                    #print "Property : " . $lPropRef->{'propName'} . "\n"; 
-                    #print "Label    : " . $lPropRef->{'label'} . "\n"; 
-                    my $lPropName = $lPropRef->{'propName'};
-                    my $lValue = "";
-
-                    if (!isSpecialProp($lPropName))
-                    {
-                        $lValue = $lElement->getAttribute($lPropName);
-                    }
-                    else
-                    {
-                        $lValue = getSpecialPropValue($lElement, $lPropName);
-                    }
-
-                    #print "\n ($lPropName) $lValue \n";
-                    #print "$lFieldWidths->{$lPropName} \n";
-                    print UcsSimple::Util::getPad($lValue, $lFieldWidths->{$lPropName}); 
-                    #print "[" . $lFieldWidths->{$lPropName} . "]" . UcsSimple::Util::getPad($lValue, $lFieldWidths->{$lPropName}) . "]";
-                    print "   ";
-                }
-                print "\n";
-            }
-        }
-    } 
-}
 
 
 # Print a table - mo's may be instances of various classes 

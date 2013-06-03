@@ -97,6 +97,7 @@ sub endCb
     my ($aInExpat, $aInEl) = @_;
     print qq'&lt;/<span class="element">$aInEl</span>&gt;';
     print '</ul>';
+    print "<br>\n";
 }
 
 

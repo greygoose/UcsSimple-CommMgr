@@ -10,11 +10,13 @@ use vars qw($VERSION @EXPORT @EXPORT_OK @ISA);
 use Carp qw(croak cluck confess);
 use XML::LibXML;
 use UcsSimple::ClassMeta;
+use UcsSimple::Util;
 use Data::Dumper;
 
 @ISA    = qw( Exporter );
 @EXPORT_OK = qw( &pruneDomTree &getUcsAttrs &getConfigConfMo &getConfigConfMos 
-                 &populateDn &getEstimateImpact &getFieldWidthCb &getElementByClassCb &getElementByDnCb &isStat);
+                 &populateDn &getEstimateImpact &getFieldWidthCb &getElementByClassCb 
+                 &getElementByDnCb &getElementByClass &getElementByDn &isStat &printTables);
 
 $VERSION = "0.0001";
 
@@ -237,6 +239,32 @@ sub getElementByClassCb
 
 
 
+sub getElementByDn
+{
+    my ($aInElement) = @_;
+    my $lDnElMap = {};
+    UcsSimple::DomUtil::visit(
+        $aInElement,
+        [ UcsSimple::DomUtil::getElementByDnCb($lDnElMap) ]
+    );
+    return $lDnElMap;
+}
+
+
+
+sub getElementsByClass
+{
+    my ($aInElement) = @_;
+    my $lClassElMap = {};
+    UcsSimple::DomUtil::visit(
+        $aInElement,
+        [ UcsSimple::DomUtil::getElementByClassCb($lClassElMap) ]
+    );
+    return $lClassElMap;
+}
+
+
+
 sub getFieldWidthCb
 {
     my ($aInOutClassAttrLengthMap) = @_;
@@ -276,6 +304,114 @@ sub getFieldWidthCb
     return $lCb;
 }
 
+
+# Get the property in the child of DOM element - example "child:name"
+sub getSpecialPropValue
+{
+    my ($aInElement, $aInPropName) = @_;
+
+    my $lValue = undef;
+    my ($lPre, $lChildClass, $lChildProp) = split(/:/, $aInPropName);
+    my @lChildren =  $aInElement->getElementsByTagName($lChildClass);
+
+    for my $lChild (@lChildren)
+    {
+        if ($lChild->nodeType() eq ELEMENT_NODE)
+        {
+            $lValue = $lChild->getAttribute($lChildProp);
+            last;
+        }
+    }
+    return $lValue;
+}
+
+
+# Is this a "special" property - really just look for "child" at start.
+sub isSpecialProp
+{
+    my $aInPropName = shift;
+    return ($aInPropName =~ "^child:");
+}
+
+
+
+# Print some tables of information from organizaed UCS xml content and
+# an xml file that describes the table.
+# classElementMap - ref to a map indexed by class and items are xml entities
+# props - reference to array xml attribute names (properties) we will print
+# props - (parallel) reference to array table headings
+sub printTables
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'classElementMap'}))
+    {
+        confess "Missing mandator argument: classElementMap";
+    }
+    my $aInClassElementMap = $aInRefArgs->{'classElementMap'};
+
+    if (!exists($aInRefArgs->{'moAttrPrintCfg'}))
+    {
+        confess "Missing mandator argument: moAttrPrintCfg";
+    }
+    my $aInMoAttrPrintCfg = $aInRefArgs->{'moAttrPrintCfg'};
+
+    my $aInClassMap = undef;
+    if (exists($aInRefArgs->{'classes'}))
+    {
+        $aInClassMap = $aInRefArgs->{'classes'};
+    }
+
+    # We print a table for each class that has elements provided:
+    # - we have format information for it
+    # - it is in out list of classes to print (or list is empty..print all)
+    foreach my $lClass (sort keys %{$aInClassElementMap})
+    {
+        if (((!defined($aInClassMap)) || (exists $aInClassMap->{$lClass})) &&
+          (exists $aInMoAttrPrintCfg->{'table'}->{$lClass}))
+        {
+            my $lRows = [];
+            my $lHeadings  = [];
+            my $lElementNum = 0;
+            foreach my $lElement (@{$aInClassElementMap->{$lClass}})
+            {
+                # Print table row
+                my $lRow = [];
+                foreach my $lPropRef (@{$aInMoAttrPrintCfg->{table}->{$lClass}->{'property'}})
+                {
+                    my $lPropName = $lPropRef->{'propName'};
+                    if ($lElementNum == 0)
+                    {
+                        my $lHeading = exists $lPropRef->{'label'} ?
+                            $lPropRef->{'label'} : $lPropName;
+                        push @{$lHeadings}, $lHeading;
+                    }
+
+                    my $lValue = "";
+                    if (!isSpecialProp($lPropName))
+                    {
+                        $lValue = $lElement->getAttribute($lPropName);
+                    }
+                    else
+                    {
+                        $lValue = getSpecialPropValue($lElement, $lPropName);
+                    }
+                    push @{$lRow}, $lValue;
+                }
+                push @{$lRows}, $lRow;
+                $lElementNum++;
+            }
+            if ($lElementNum > 0)
+            {
+                print "\n[" . $lClass . "]\n";
+                UcsSimple::Util::printTable({
+                    rows => $lRows,
+                    headings => $lHeadings,
+                });
+            }
+        }
+    }
+}
 
 
 

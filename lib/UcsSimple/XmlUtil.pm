@@ -36,6 +36,7 @@ use UcsSimple::Util;
     &getConfMoXml
     &getDeleteXml
     &getDeleteManyXml
+    &getSimpleCreateXml
     &getSubscribeXml
     &getEstimateImpactXml
 );
@@ -578,6 +579,7 @@ sub getComputeLcXml
 }
 
 
+
 sub getConfMoXml
 {
     my ($aInRefArgs) = @_;
@@ -628,6 +630,61 @@ END
     $lXmlRequest =~ s/REPLACE_ATTR/$lAttr/;
     return $lXmlRequest;
 }
+
+
+
+sub getSimpleCreateXml
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'dn'}))
+    {
+        croak "Missing mandatory argument: dn\n";
+    }
+    my $aInDn = $aInRefArgs->{'dn'};
+
+    if (!exists($aInRefArgs->{'class'}))
+    {
+        croak "Missing mandatory argument: class\n";
+    }
+    my $aInClass = $aInRefArgs->{'class'};
+
+    my $aInCookie = "";
+    if (exists($aInRefArgs->{'cookie'}) and
+       (defined($aInRefArgs->{'cookie'})))
+    {
+        $aInCookie = $aInRefArgs->{'cookie'};
+    }
+
+    if (!exists($aInRefArgs->{'attrMap'}))
+    {
+        croak "Missing mandatory argument: attrMap\n";
+    }
+    my $aInAttrRef = $aInRefArgs->{'attrMap'};
+
+    my $lXmlRequest = <<END;
+        <configConfMo
+            cookie="$aInCookie" dn="$aInDn">
+            <inConfig>
+                <$aInClass
+                    dn="$aInDn">
+                REPLACE_ATTR
+                </$aInClass>
+            </inConfig>
+        </configConfMo>
+END
+
+   my $lAttr = "";
+   for my $lKey (keys %{$aInAttrRef})
+   {
+       $lAttr .= $lKey . "=\"" . $aInAttrRef->{$lKey} .  "\" ";
+   }
+
+    $lXmlRequest =~ s/REPLACE_ATTR/$lAttr/;
+    return $lXmlRequest;
+}
+
+
 
 sub getDeleteXml
 {
@@ -800,6 +857,7 @@ Perhaps a little code snippet.
 =item * getComputeLcXml
 =item * getConfMoXml
 =item * getDeleteXml
+=item * getSimpleCreateXml
 =item * getDeleteManyXml
 =item * getSubscribeXml
 =item * getEstimateImpactXml
@@ -961,6 +1019,21 @@ Mandatory arguments are dn, lc, and class.  Optional arguments are cookie and hi
 Get the xml to do a UCS configConfMo lc field on a server.
 Mandatory arguments are dn, attrMap, and class  Optional arguments are cookie.
 
+
+
+=head2 getSimpleCreateXml
+
+Get xml to post to UCS for create operation.  Mandatory arguments are class, dn and attrMap.
+Optional arguments  are cookie.
+
+    my $lXmlRequest = UcsSimple::XmlUtil::getSimpleCreateXml(
+    {
+        class => "lsServer",
+        dn=> "org-root/ls-MyVm",
+        cookie => $lCookie,
+        attrMap => {name => "$lPoolName"});
+    });
+    ...
 
 
 =head2 getDeleteXml

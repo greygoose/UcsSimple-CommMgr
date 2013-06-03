@@ -291,7 +291,7 @@ sub doLogin
 sub doRefresh
 {
     my ($self) = @_;
-    my $lXmlRequest = UcsSimple::XmlUtil::getLoginXml(
+    my $lXmlRequest = UcsSimple::XmlUtil::getRefreshXml(
     { 
         name => $self->session()->userName(), 
         password => $self->session()->password(),
@@ -300,7 +300,7 @@ sub doRefresh
 
     my $lCookie = undef;
     my ($lSuccess, $lContent, $lErrHashRef) =
-        doPostXML({postData => $lXmlRequest});
+        $self->doPostXML({postData => $lXmlRequest});
 
     if ($lSuccess)
     {
@@ -311,6 +311,8 @@ sub doRefresh
             $lCookie = undef if ($lCookie && $lCookie eq "");
         };
     }
+
+    $self->session()->cookie($lCookie);
 
     get_logger(__PACKAGE__)->info(
         (defined($lCookie) ? 
