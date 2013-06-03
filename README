@@ -63,12 +63,13 @@ You can get documentation for each of the programs as follows:
     perldoc delete-class
     perldoc delete-mo
     perldoc event-reader
+    perldoc fault-reader
     perldoc meta-gen
     perldoc pretty-print
     perldoc resolve-classes
     perldoc scope
+    perldoc monitor-sp
     perldoc xml-to-html
-
 
 =head1 CONFIGURATION FILE
 
@@ -124,9 +125,11 @@ These are listed below:
     delete-mo
     delete-class
     event-reader
+    fault-reader
     ucs-diff
     meta-gen
     convert-to-config
+    monitor-sp
 
 
 
@@ -172,6 +175,11 @@ Below, are some examples that you can cut and paste.
 =head2 Subscribe to UCS event channel:
 
     event-reader --cfg=./config/demo.conf 
+
+
+=head2 Subscribe to UCS event channel and print out faults:
+
+    fault-reader --cfg=./config/demo.conf 
 
 
 =head2 Delete all lsServer instances.  You will be prompted for each deletion (only single UCS operation to do bulk delete).

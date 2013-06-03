@@ -39,6 +39,7 @@
 		<li><a href="#get_all_instances_of_named_class__ls_server__in_subtree_under_a_named_managed_object__org_root_org_hr__">Get all instances of named class (ls-server) in subtree under a named managed object (org-root/org-hr):</a></li>
 		<li><a href="#get_all_instances_of_a_list_of_classes__read_from_standard_input__">Get all instances of a list of classes (read from standard input):</a></li>
 		<li><a href="#subscribe_to_ucs_event_channel_">Subscribe to UCS event channel:</a></li>
+		<li><a href="#subscribe_to_ucs_event_channel_and_print_out_faults_">Subscribe to UCS event channel and print out faults:</a></li>
 		<li><a href="#delete_all_lsserver_instances__you_will_be_prompted_for_each_deletion__only_single_ucs_operation_to_do_bulk_delete__">Delete all lsServer instances.  You will be prompted for each deletion (only single UCS operation to do bulk delete).</a></li>
 		<li><a href="#find_the_managed_objects_that_depend_on_a_policy_pool_">Find the managed objects that depend on a policy/pool:</a></li>
 		<li><a href="#show_the_impact_of_a_ucs_configuration_operation_with_out_applying_">Show the impact of a UCS configuration operation with-out applying.</a></li>
@@ -116,11 +117,14 @@ the modules as follows:</p>
     perldoc resolve-dn
     perldoc ucs-diff
     perldoc delete-class
+    perldoc delete-mo
     perldoc event-reader
+    perldoc fault-reader
     perldoc meta-gen
     perldoc pretty-print
     perldoc resolve-classes
     perldoc scope
+    perldoc monitor-sp
     perldoc xml-to-html</pre>
 <p>
 </p>
@@ -172,11 +176,14 @@ These are listed below:</p>
 </p>
 <h2><a name="other_apps">OTHER APPS</a></h2>
 <pre>
+    delete-mo
     delete-class
     event-reader
+    fault-reader
     ucs-diff
     meta-gen
-    convert-to-config</pre>
+    convert-to-config
+    monitor-sp</pre>
 <p>
 </p>
 <h2><a name="utility_apps">UTILITY APPS</a></h2>
@@ -219,6 +226,11 @@ These are listed below:</p>
 <h2><a name="subscribe_to_ucs_event_channel_">Subscribe to UCS event channel:</a></h2>
 <pre>
     event-reader --cfg=./config/demo.conf</pre>
+<p>
+</p>
+<h2><a name="subscribe_to_ucs_event_channel_and_print_out_faults_">Subscribe to UCS event channel and print out faults:</a></h2>
+<pre>
+    fault-reader --cfg=./config/demo.conf</pre>
 <p>
 </p>
 <h2><a name="delete_all_lsserver_instances__you_will_be_prompted_for_each_deletion__only_single_ucs_operation_to_do_bulk_delete__">Delete all lsServer instances.  You will be prompted for each deletion (only single UCS operation to do bulk delete).</a></h2>
