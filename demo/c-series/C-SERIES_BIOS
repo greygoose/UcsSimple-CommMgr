@@ -12,12 +12,9 @@ We assume that you have downloaded and installed the UcsSimple-CommMgr perl modu
 It can be downloaded from : 
     https://github.com/greygoose/UcsSimple-CommMgr
 
-
-We assume that there is a configuration script for the target c-series called 
-"./cfg/220M3.cfg".   
-
-The uri, uname, passwd and log4perl command line options can be read from it.
-Example configuration file:
+We also assume that there is a configuration script for the target c-series called 
+"./cfg/220M3.cfg".    This file provides the  communication settings for the C-Series
+system.  Here is an example configuration file:
 
     [UCS]
     URI     = http://ucs-vip/nuova
