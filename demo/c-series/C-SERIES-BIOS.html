@@ -52,14 +52,14 @@
 <hr />
 <h1><a name="setup">Setup</a></h1>
 <p>We assume that there is a configuration script for the target c-series called 
-&quot;./cfg/220M3.xml&quot;.</p>
+&quot;./cfg/220M3.cfg&quot;.</p>
 <p>The uri, uname, passwd and log4perl command line options can be read from it.
 Example configuration file:</p>
 <pre>
     [UCS]
     URI     = <a href="http://ucs-vip/nuova">http://ucs-vip/nuova</a>
     UNAME = admin
-    PASSWORD = Nbv12345</pre>
+    PASSWORD = password</pre>
 <pre>
     [APP]
     LOG4PERL = ./config/log.conf</pre>
@@ -99,14 +99,14 @@ The required steps are:</p>
 <h2><a name="query_the_bios_settings">Query the bios settings</a></h2>
 <p>We can query the bios settings (and save them to a file) with the following query:</p>
 <pre>
-        resolve-dn --cfg=./cfg/220M3.config --dn=sys/rack-unit-1/bios/bios-settings --hier &gt; 220M3-bios-query.xml</pre>
+        resolve-dn --cfg=./cfg/220M3.cfg --dn=sys/rack-unit-1/bios/bios-settings --hier &gt; 220M3-bios-query.xml</pre>
 <p>
 </p>
 <h2><a name="create_a_golden_bios_configuration">Create a &quot;golden&quot; BIOS configuration</a></h2>
 <p>Convert the query result to a xml configuration that can be applied to other servers.  
 This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
 <pre>
-         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C220.xsd &gt; 220M3-gold.xml</pre>
+         convert-to-config --xml=220M3-bios-query.xml --schema=/home/ikent/demo/schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-IN-UCS-C220.xsd &gt; 220M3-gold.xml</pre>
 <p>
 </p>
 <h2><a name="check_the_system_settings">Check the system settings</a></h2>
@@ -121,13 +121,18 @@ This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
 <pre>
         mo-print --xml=target.xml --print-cfg=./print-cfg/fault.xml --format=table
         mo-print --xml=target.xml --print-cfg=./print-cfg/inventory.xml --format=table | more
-        mo-print --xml=target.xml --print-cfg=./print-cfg/firmare.xml   --format=table | more</pre>
+        mo-print --xml=target.xml --print-cfg=./print-cfg/firmware.xml   --format=table | more</pre>
 <p>
 </p>
 <h2><a name="configure_servers_using_this_bios_configuration">Configure servers using this BIOS configuration</a></h2>
 <p>We can now use the BIOS configuration to configure other servers.</p>
 <pre>
-        post --cfg=target-server.config --xml=220M3-gold.xml</pre>
+        post --cfg=./cfg/target.cfg --xml=220M3-gold.xml</pre>
+<p>Note: If we were going to try to configure a different type model of server or a server with a
+different bios version, we should first check that it accepts the same set of bios tokens.
+We could query the bios settings of the target and golden systems and compare the results
+ucs-diff --no-vals --xml=220-M3-biosQuery.xml --xml=target-biosQuery.xml  (then manually add
+or remove settings as necessary).</p>
 <p>
 </p>
 <h2><a name="verify_the_configuration">Verify the configuration</a></h2>
@@ -137,7 +142,7 @@ This is done using the xml schema and saved in the file 2220M3-gold.xml</p>
         resolve-dn --cfg=./cfg/target.cfg --dn=sys/rack-unit-1/bios/bios-settings --hier &gt; target-bios-query.xml</pre>
 <p>Convert the query to a configuration operation:</p>
 <pre>
-         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C220.xsd &gt; target-current.xml</pre>
+         convert-to-config --xml=target-bios-query.xml --schema=/home/ikent/demo/schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-IN-UCS-C220.xsd &gt; target-current.xml</pre>
 <p>Compare the two xml configuration documents:</p>
 <pre>
         ucs-diff --xml=./target-current.xml --xml=./220M3-gold.xml</pre>

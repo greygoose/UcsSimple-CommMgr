@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<print_cfg>
+
+    <table name="firmwareRunning"> 
+            <property label="DN" propName="dn" />
+            <property label="Deployment" propName="deployment" />
+            <property label="Version" propName="version" />
+    </table>
+
+    <detail name="firmwareRunning"> 
+            <property label="DN" propName="dn" />
+            <property label="Deployment" propName="deployment" />
+            <property label="Type" propName="type" />
+            <property label="Version" propName="version" />
+    </detail>
+
+    <table name="firmwareUpdatable"> 
+            <property label="DN" propName="dn" />
+            <property label="Deployment" propName="deployment" />
+            <property label="Type" propName="type" />
+            <property label="Version" propName="version" />
+    </table>
+
+    <detail name="firmwareUpdatable"> 
+            <property label="DN" propName="dn" />
+            <property label="Deployment" propName="deployment" />
+            <property label="Type" propName="type" />
+            <property label="Version" propName="version" />
+            <property label="Deployment" propName="deployment" />
+    </detail>
+
+    <table name="firmwareBootUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Image" propName="image" />
+            <property label="Type" propName="type" />
+            <property label="Version" propName="version" />
+    </table>
+
+    <detail name="firmwareBootUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Image" propName="image" />
+            <property label="Type" propName="type" />
+            <property label="Version" propName="version" />
+    </detail>
+
+</print_cfg>
+
+
+

@@ -1273,8 +1273,104 @@ sub usage
     exit;
 }
 
+__END__
+
+
+=head1 NAME
+
+monitor-sp - monitor service profiles for a list of fatal faults.
+             If the service profile is associated with a compute pool and 
+             a fatal fault occurs, the script will decomission the server
+             and re-assign the service profile to the pool (to get another server).
 
 
 
+=head1 USAGE
 
+event-reader [options]
+
+    monitor-sp --cfg=./cfg/demo.conf
+
+=head1 CONFIGURATION FILE CONTENTS
+
+    [UCS]
+    URI	= https://nikon-A/nuova
+    UNAME = admin
+    PASSWORD = Nbv12345
+
+    [APP]
+
+    LOG4PERL = /home/ikent/demo/cfg/log.cfg
+    MAX_FAILURES= 0 
+    PRINT_CFG = /home/ikent/demo/print-cfg/monitor-sp.xml
+    SIM_MODE = 1
+    SLEEP_TIME = 60
+    SHOW_SP_DETAILS= 1
+    SHOW_CFG_DETAILS= 0
+    FAULT_MONITOR_FILE=REPORTED_FAULTS
+
+    # SERVICE PROFILES TO MONITOR
+    SP_DN = org-root/org-finance/ls-DoesNotExist
+    SP_DN = org-root/org-finance/ls-SilverVm1
+    SP_DN = org-root/org-finance/ls-SilverVm2
+    SP_DN = org-root/org-finance/ls-SilverVm3
+    SP_DN = org-root/org-finance/ls-SilverVm4
+    SP_DN = org-root/org-finance/ls-SilverVm5
+    SP_DN = org-root/org-finance/ls-SilverVm6
+    SP_DN = org-root/org-finance/ls-SilverVm7
+    SP_DN = org-root/org-finance/ls-SilverVm8
+    SP_DN = org-root/org-finance/ls-SilverVm9
+    SP_DN = org-root/org-finance/ls-SilverVm10
+
+
+    # FATAL FAULTS TO WATCH OUT FOR
+    # fltProcessorUnitVoltageThresholdNonRecoverable
+    FAULT_CODE =  F0180 
+
+    # fltMemoryUnitDegraded
+    FAULT_CODE =  F0184
+
+    # fltMemoryUnitInoperable
+    FAULT_CODE =  F0185
+
+    # fltMemoryBufferUnitThermalThresholdNonRecoverable
+    FAULT_CODE =  F0537
+
+    # fltMemoryArrayVoltageThresholdNonRecoverable
+    FAULT_CODE =  F0191
+
+    # fltMemoryUnitThermalThresholdNonRecoverable
+    FAULT_CODE =  F0188
+
+
+d1 SEE ALSO
+
+L<LOG4PERL> for log4perl configuration file.
+L<UcsSimple::EventUtil>
+L<UcsSimple::Session>
+L<UcsSimple::CommMgr>
+L<UcsSimple::Util>
+L<UcsSimple::XmlUtil>
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc event-reader
+
+You can also look for information at:
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
 

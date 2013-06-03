@@ -213,7 +213,7 @@ UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
 
     --log4perl=<cfg-file>     The log4perl config file.
     --usage                   Print a usage message.
-    --verbose                 Print event channel to stdout.
+    --verbose                 Print all recevied event channel to stdout.
 
 
 

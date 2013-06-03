@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<print_cfg>
+
+    <table name="faultInst"> 
+            <property label="Severity" propName="severity" />
+            <property label="Code" propName="code" />
+            <property label="Type" propName="type" />
+            <property label="ID" propName="id" />
+            <property label="Last Transition" propName="lastTransition"/>
+            <property label="Cause" propName="cause" />
+    </table>  
+
+    <detail name="faultInst"> 
+            <property label="Severity" propName="severity" />
+            <property label="ID" propName="id" />
+            <property label="Description" propName="descr" />
+            <property label="Cause" propName="cause" />
+            <property label="Rule" propName="rule" />
+            <property label="Type" propName="type" />
+            <property label="Last Transition" propName="lastTransition" />
+    </detail>  
+
+</print_cfg>
+

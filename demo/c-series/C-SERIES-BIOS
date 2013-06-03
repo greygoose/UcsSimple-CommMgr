@@ -8,7 +8,7 @@ This document provides an example of commands that can be used to configure the 
 =head1 Setup
 
 We assume that there is a configuration script for the target c-series called 
-"./cfg/220M3.xml".   
+"./cfg/220M3.cfg".   
 
 The uri, uname, passwd and log4perl command line options can be read from it.
 Example configuration file:
@@ -16,7 +16,7 @@ Example configuration file:
     [UCS]
     URI     = http://ucs-vip/nuova
     UNAME = admin
-    PASSWORD = Nbv12345
+    PASSWORD = password
 
     [APP]
     LOG4PERL = ./config/log.conf
@@ -73,7 +73,7 @@ Using the web gui, configure the desired server BIOS settings.
 
 We can query the bios settings (and save them to a file) with the following query:
 
-	resolve-dn --cfg=./cfg/220M3.config --dn=sys/rack-unit-1/bios/bios-settings --hier > 220M3-bios-query.xml
+	resolve-dn --cfg=./cfg/220M3.cfg --dn=sys/rack-unit-1/bios/bios-settings --hier > 220M3-bios-query.xml
 
 
 
@@ -82,8 +82,7 @@ We can query the bios settings (and save them to a file) with the following quer
 Convert the query result to a xml configuration that can be applied to other servers.  
 This is done using the xml schema and saved in the file 2220M3-gold.xml
 
-         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C220.xsd > 220M3-gold.xml
-
+         convert-to-config --xml=220M3-bios-query.xml --schema=/home/ikent/demo/schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-IN-UCS-C220.xsd > 220M3-gold.xml
 
 
 =head2 Check the system settings
@@ -101,7 +100,7 @@ We can use some utility scripts to harvest interesting information from the abov
 
 	mo-print --xml=target.xml --print-cfg=./print-cfg/fault.xml --format=table
 	mo-print --xml=target.xml --print-cfg=./print-cfg/inventory.xml --format=table | more
-	mo-print --xml=target.xml --print-cfg=./print-cfg/firmare.xml   --format=table | more
+	mo-print --xml=target.xml --print-cfg=./print-cfg/firmware.xml   --format=table | more
 
 
 
@@ -109,8 +108,13 @@ We can use some utility scripts to harvest interesting information from the abov
 
 We can now use the BIOS configuration to configure other servers.
 
-	post --cfg=target-server.config --xml=220M3-gold.xml
+	post --cfg=./cfg/target.cfg --xml=220M3-gold.xml
 
+Note: If we were going to try to configure a different type model of server or a server with a
+different bios version, we should first check that it accepts the same set of bios tokens.
+We could query the bios settings of the target and golden systems and compare the results
+ucs-diff --no-vals --xml=220-M3-biosQuery.xml --xml=target-biosQuery.xml  (then manually add
+or remove settings as necessary).
 
 
 =head2 Verify the configuration
@@ -123,8 +127,7 @@ Query the configured server "target-server" for its current bios settings:
 
 Convert the query to a configuration operation:
 
-         convert-to-config --xml=target-bios-query.xml --schema=./schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-In-UCS-C220.xsd > target-current.xml
-
+         convert-to-config --xml=target-bios-query.xml --schema=/home/ikent/demo/schema/UCS-C-Series-XML-API-Schemas-V1.5_1f/RACK-IN-UCS-C220.xsd > target-current.xml
 
 Compare the two xml configuration documents:
 

@@ -25,10 +25,19 @@ bin/resolve-dns
 bin/scope
 bin/ucs-diff
 bin/xml-to-html
+bin/fault-reader
+bin/monitor-sp
 demo/c-series/C-SERIES-BIOS
+demo/c-series/C-SERIES-BIOS.html
+demo/c-series/cfg/220M3.cfg
+demo/c-series/print-cfg/fault.xml
+demo/c-series/print-cfg/firmware.xml
+demo/c-series/print-cfg/inventory.xml
+TODO
 Build.PL
 MANIFEST			This list of files
 README
+README.html
 t/00-load.t
 t/manifest.t
 t/pod-coverage.t

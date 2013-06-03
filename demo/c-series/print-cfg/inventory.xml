@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<print_cfg>
+
+    <table name="computeBlade"> 
+            <property label="DN" propName="dn" />
+            <property label="Chassis" propName="chassisId" />
+            <property label="Slot" propName="slotId" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </table>
+
+    <detail name="computeBlade"> 
+            <property label="DN" propName="dn" />
+            <property label="Chassis" propName="chassisId" />
+            <property label="Slot" propName="slotId" />
+            <property label="Oper State" propName="operState" />
+            <property label="Operability" propName="operability"/> 
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Assigned To" propName="assignedToDn" />
+    </detail>
+
+    <table name="computeRackUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="serverId" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </table>
+
+    <detail name="computeRackUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="serverId" />
+            <property label="Oper Power" propName="operPower" />
+            <property label="UUID" propName="uuid"/>
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Assigned To" propName="assignedToDn" />
+    </detail>
+
+    <table name="computeBoard"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="serverId" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </table>
+
+    <detail name="computeBoard"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="serverId" />
+            <property label="Oper Power" propName="operPower" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </detail>
+
+    <table name="computeMemoryUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Form" propName="form" />
+            <property label="Location" propName="location" />
+    </table>
+
+    <detail name="computeMemoryUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Oper State" propName="operState" />
+            <property label="Operability" propName="operability" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Form" propName="form" />
+            <property label="Location" propName="location" />
+    </detail>
+
+    <table name="processorUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Speed" propName="speed" />
+            <property label="stepping" propName="Stepping"/> 
+    </table>
+
+    <detail name="processorUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Oper State" propName="operState" />
+            <property label="Operability" propName="operability" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Speed" propName="speed" />
+            <property label="stepping" propName="Stepping"/> 
+            <property label="Cores" propName="cores" />
+    </detail>
+
+    <table name="memoryUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="ID" propName="id"/> 
+            <property label="Array" propName="array"/> 
+            <property label="Type" propName="type"/> 
+    </table>
+
+    <detail name="memoryUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="ID" propName="id"/> 
+            <property label="Array" propName="array"/> 
+            <property label="Type" propName="type"/> 
+            <property label="Visibility" propName="visibility"/> 
+            <property label="Capacity" propName="capacity"/> 
+            <property label="Clock" propName="clock"/> 
+            <property label="Width" propName="width"/> 
+    </detail>
+
+    <table name="equipmentFan"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Tray" propName="tray" />
+    </table>
+
+    <detail name="equipmentFan"> 
+            <property label="DN" propName="dn" />
+            <property label="Deployment" propName="deployment" />
+            <property label="Type" propName="type" />
+            <property label="Version" propName="version" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Tray" propName="tray" />
+    </detail>
+
+    <table name="equipmentFanModule"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Tray" propName="tray" />
+    </table>
+
+    <detail name="equipmentFanModule"> 
+            <property label="DN" propName="dn" />
+            <property label="Deployment" propName="deployment" />
+            <property label="Type" propName="type" />
+            <property label="Version" propName="version" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Tray" propName="tray" />
+    </detail>
+
+    <table name="equipmentPsu"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="id" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Tray" propName="tray" />
+    </table>
+
+    <detail name="equipmentPsu"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="id" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Thermal" propName="thermal" />
+            <property label="Operability" propName="operability" />
+    </detail>
+
+
+    <table name="adaptorUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="id" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Tray" propName="tray" />
+    </table>
+
+    <detail name="adaptorUnit"> 
+            <property label="DN" propName="dn" />
+            <property label="ID" propName="id" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Thermal" propName="thermal" />
+            <property label="Presence" propName="presence" />
+            <property label="PCI Addr" propName="pciAddr" />
+            <property label="pciSlot" propName="pciSlot" />
+    </detail>
+
+    <table name="mgmtController"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </table>
+
+    <detail name="mgmtController"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </detail>
+
+    <table name="adaptorGenProfile"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </table>
+
+    <detail name="adaptorGenProfile"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Product Name" propName="productName" />
+            <property label="Revision" propName="revision" />
+    </detail>
+
+    <table name="storageController"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+    </table>
+
+    <detail name="storageController"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Model" propName="model" />
+            <property label="Serial" propName="serial" />
+            <property label="Type" propName="type" />
+            <property label="Raid Support" propName="raidSupport" />
+    </detail>
+
+    <table name="storageLocalDisk"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Serial" propName="driveSerial" />
+    </table>
+
+    <detail name="storageLocalDisk"> 
+            <property label="DN" propName="dn" />
+            <property label="Vendor" propName="vendor" />
+            <property label="Serial" propName="driveSerial" />
+            <property label="Product ID" propName="productId" />
+    </detail>
+
+
+</print_cfg>
+
+
+
