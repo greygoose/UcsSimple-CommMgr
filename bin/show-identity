@@ -1,0 +1,455 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Config::Std;
+use Getopt::Long;
+use Carp qw(croak cluck confess);
+use Log::Log4perl qw (get_logger);
+
+use UcsSimple::Session;
+use UcsSimple::CommMgr;
+use UcsSimple::Util;
+use UcsSimple::XmlUtil;
+use UcsSimple::DomUtil;
+use constant ELEMENT_NODE => 1;
+
+# Signal handler (assure 1 logout per login)
+$SIG{'INT'} = \&sigIntHandler;
+my $lCommMgr = undef;
+
+my $lUname = "admin";
+my $lUri = undef;
+my $lPasswd = undef;
+my $lShowResp= undef;
+my $lClass= undef;
+my $lLogCfgFile = undef;
+my $lCfgFile = undef;
+my $lRetCode = 1;
+my $lDisplay = "detail";
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+        # Application specific options
+	'uri=s' 	=> \$lUri,          # Server uri
+	'uname=s'       => \$lUname,        # User name.
+	'passwd=s'      => \$lPasswd,       # Password.
+	'log4perl=s'    => \$lLogCfgFile,   # log4perl configuration file
+	'cfg=s'         => \$lCfgFile,      # a cfg file with application settings.
+
+        'class=s'       => \$lClass,        # class
+        'display=s'     => \$lDisplay,      # display option
+        'raw'           => \$lShowResp,     # Print the raw xml response
+
+	# Standard meta-options
+	'usage'		=> sub { usage(); },
+	'help'		=> sub { usage(); },
+);
+
+usage() if !$options_okay;
+
+if (defined($lCfgFile))
+{
+    read_config $lCfgFile => my %lConfig;
+
+    # Command line arguments take precendence.
+    # Next, we read from a configuration file.
+    $lUri = $lConfig{'UCS'}{'URI'} if (!$lUri);
+    $lUname = $lConfig{'UCS'}{'UNAME'} if (!$lUname);
+    $lPasswd = $lConfig{'UCS'}{'PASSWORD'} if (!$lPasswd);
+    $lLogCfgFile = $lConfig{'APP'}{'LOG4PERL'} if (!$lLogCfgFile);
+}
+
+usage() if ((!$lLogCfgFile) || (!$lUname) || (!$lPasswd) || (!$lUri)  || (!$lClass));
+
+
+my $lTableDesc = getTableDesc();
+die "Unsupported class: $lClass" if (!exists($lTableDesc->{$lClass}));
+die "Unsupported display option : $lDisplay" if (!exists($lTableDesc->{$lClass}->{$lDisplay}));
+
+
+initLogging($lLogCfgFile);
+
+# Create session and communication manager
+my $lSession = UcsSimple::Session->new(
+    { userName => $lUname, password => $lPasswd, uri => $lUri });
+
+$lCommMgr = UcsSimple::CommMgr->new(
+    { session => $lSession, ssl_opts => {no_verify => 1} });
+
+my $lCookie = $lCommMgr->doLogin();
+croak "Failed to get cookie" if (!defined $lCookie);
+
+my ($lSuccess, $lXmlResp, $lErrHashRef) = 
+    $lCommMgr->resolveClass({ class => $lClass, hier => "true" });
+
+my $lStream = $lSuccess ? *STDOUT : *STDERR;
+if (defined($lShowResp))
+{
+    print "Response\n";
+    UcsSimple::XmlUtil::printResponse(
+    {
+        success => $lSuccess, xmlDoc => \$lXmlResp,
+        errorHash => $lErrHashRef,
+        pretty => 1, stream => $lStream,
+    });
+}
+
+if ($lSuccess)
+{
+    my $lXmlParser = XML::LibXML->new();
+    my $lXmlDoc = $lXmlParser->parse_string($lXmlResp);
+    UcsSimple::DomUtil::populateDn($lXmlDoc, 1);
+
+    printTable(
+    {
+        class => $lClass, 
+        headings => $lTableDesc->{$lClass}->{$lDisplay}->{'headings'},
+        attributes => $lTableDesc->{$lClass}->{$lDisplay}->{'attributes'},
+        doc => $lXmlDoc
+    });
+
+}
+
+$lCommMgr->doLogout();
+
+$lRetCode = $lSuccess ? 0 : 1;
+exit $lRetCode;
+
+
+
+# Print usage message.
+sub usage 
+{
+    print "For usage information:\n";
+    print "\n\tshow-identity\n\n";
+    exit;
+}
+
+
+
+sub printTable
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'doc'}))
+    {
+        confess "Missing mandator argument: doc";
+    }
+    my $aInDoc = $aInRefArgs->{'doc'};
+
+    if (!exists($aInRefArgs->{'headings'}))
+    {
+        confess "Missing mandator argument: headings";
+    }
+    my $aInHeadings = $aInRefArgs->{'headings'};
+
+    if (!exists($aInRefArgs->{'class'}))
+    {
+        confess "Missing mandator argument: class";
+    }
+    my $aInClass = $aInRefArgs->{'class'};
+
+    if (!exists($aInRefArgs->{'attributes'}))
+    {
+        confess "Missing mandator argument: attributes";
+    }
+    my $aInAttributes = $aInRefArgs->{'attributes'};
+
+    my $lRows = [];
+    my @lElements =  $aInDoc->getElementsByTagName($aInClass);
+    foreach my $lElement (@lElements)
+    {
+        my @lRow;
+        foreach my $lAttrName (@{$aInAttributes})
+        { 
+            my $lValue = "";
+            if (!isSpecialProp($lAttrName))
+            {
+                $lValue = $lElement->getAttribute($lAttrName);
+            }
+            else
+            {
+                $lValue = getSpecialPropValue($lElement, $lAttrName);
+            }
+            push @lRow, $lValue;
+        }
+        push @{$lRows}, \@lRow;
+    }
+
+    UcsSimple::Util::printTable(
+    {
+        rows => $lRows,
+        headings => $aInHeadings,
+    });
+    print "\n";
+}
+
+
+
+sub getTableDesc
+{
+    my $lTableDesc = {
+        "fcpoolAddr" => 
+        {
+            "assign" => 
+            {
+                "headings" => ["WWN", "Assigned", "Owner", "Assigned To"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn"]
+            },
+            "pool" =>
+            {
+                "headings" => ["WWN", "Assigned", "Owner", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "child:fcpoolPoolable:poolDn"]
+            },
+            "detail" =>
+            {
+                "headings" => ["WWN", "Assigned", "Owner", "Assigned To", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn", "child:fcpoolPoolable:poolDn"]
+            }
+        },
+        "macpoolAddr" => 
+        {
+            "assign" => 
+            {
+                "headings" => ["MAC", "Assigned", "Owner", "Assigned To"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn"]
+            },
+            "pool" =>
+            {
+                "headings" => ["MAC", "Assigned", "Owner", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "child:macpoolPoolable:poolDn"]
+            },
+            "detail" =>
+            {
+                "headings" => ["MAC", "Assigned", "Owner", "Assigned To", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn", "child:macpoolPoolable:poolDn"]
+            }
+        },
+        "uuidpoolAddr" => 
+        {
+            "assign" => 
+            {
+                "headings" => ["UUID", "Assigned", "Owner", "Assigned To"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn"]
+            },
+            "pool" =>
+            {
+                "headings" => ["UUID", "Assigned", "Owner", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "child:uuidpoolPoolable:poolDn"]
+            },
+            "detail" =>
+            {
+                "headings" => ["UUID", "Assigned", "Owner", "Assigned To", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn", "child:uuidpoolPoolable:poolDn"]
+            }
+        },
+        "ippoolAddr" => 
+        {
+            "assign" => 
+            {
+                "headings" => ["IP", "Assigned", "Owner", "Assigned To"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn"]
+            },
+            "pool" =>
+            {
+                "headings" => ["IP", "Assigned", "Owner", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "child:ippoolPoolable:poolDn"]
+            },
+            "detail" =>
+            {
+                "headings" => ["IP", "Assigned", "Owner", "Assigned To", "Pool Dn"],
+                "attributes" => ["id", "assigned", "owner", "assignedToDn", "child:ippoolPoolable:poolDn"]
+            }
+        },
+        "iqnpoolAddr" => 
+        {
+            "assign" => 
+            {
+                "headings" => ["IQN", "Assigned", "Owner", "Assigned To"],
+                "attributes" => ["name", "assigned", "owner", "assignedToDn"]
+            },
+            "pool" =>
+            {
+                "headings" => ["IQN", "Assigned", "Owner", "Pool Dn"],
+                "attributes" => ["name", "assigned", "owner", "child:iqnpoolPoolable:poolDn"]
+            },
+            "detail" =>
+            {
+                "headings" => ["IQN", "Assigned", "Owner", "Assigned To", "Pool Dn"],
+                "attributes" => ["name", "assigned", "owner", "assignedToDn", "child:iqnpoolPoolable:poolDn"]
+            }
+        }
+    };
+    return $lTableDesc;
+}
+
+
+
+sub isSpecialProp
+{
+    my $aInPropName = shift;
+    return ($aInPropName =~ "^child:");
+}
+
+
+
+sub getSpecialPropValue
+{
+    my ($aInElement, $aInPropName) = @_;
+
+    my $lValue = undef;
+    my ($lPre, $lChildClass, $lChildProp) = split(/:/, $aInPropName);
+    my @lChildren =  $aInElement->getElementsByTagName($lChildClass);
+
+    my $lFirst = 1;
+    for my $lChild (@lChildren)
+    {
+        if ($lChild->nodeType() eq ELEMENT_NODE)
+        {
+            if ($lFirst)
+	    {
+                $lFirst = 0;
+            }
+            else
+            {
+                $lValue .= ',';
+            }
+            $lValue .= $lChild->getAttribute($lChildProp);
+        }
+    }
+    return $lValue;
+}
+
+
+
+sub initLogging
+{
+    my ($aInLogCfgFile) = @_;
+
+    if (defined($aInLogCfgFile))
+    {
+        Log::Log4perl::init_and_watch($aInLogCfgFile, 5);
+        get_logger(__PACKAGE__)->debug(
+            "Log configuration file: $aInLogCfgFile");
+    }
+    else
+    {
+        my $lConf = q(
+            log4perl.category = DEBUG, Logfile
+            log4perl.appender.Logfile          = Log::Log4perl::Appender::File
+            log4perl.appender.Logfile.filename = debug.log
+            log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
+            log4perl.appender.Logfile.layout.ConversionPattern = [%p][%d][%F:%L] %m%n
+            log4perl.appender.Logfile.mode     = write
+            log4perl.appender.Logfile.main     = DEBUG
+        );
+        Log::Log4perl::init(\$lConf);
+        get_logger(__PACKAGE__)->debug(
+            "No log configuration file -using reasonable defaults");
+    }
+}
+
+
+
+sub sigIntHandler
+{
+    get_logger(__PACKAGE__)->warn(
+         "Caught signal - cleaning up");
+
+    print "Caught signal - will cleanup and exit \n";
+    $lCommMgr->doLogout();
+
+    get_logger(__PACKAGE__)->warn(
+         "Terminated by signal");
+
+    print "Terminated by signal\n";
+    exit 1;
+}
+
+
+
+__END__
+
+
+
+
+=head1 NAME
+
+show-identity - display information about UCS identities. 
+
+
+=head1 USAGE
+
+show-identity [options]
+
+    perl show-identity --uname=admin --passwd=pass --class=macpoolAddr 
+
+    perl show-identity --cfg=./config/demo.conf --class=macpoolAddr --raw 
+
+
+=head1 REQUIRED ARGUMENTS
+
+    --class=<ucl-class>       The class to search for.
+    --uri=<ucs-vip>           The UCS VIP uri.
+    --uname=<ucs-user>        The UCS user name.
+    --passwd=<ucs-pass>       The UCS password.
+
+
+UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
+
+=head1 OPTIONS
+    --display=<disp-opt>       Display should be one of (assign, pool, detail)
+    --log4perl=<cfg-file>     The log4perl config file.
+    --cfg=<config-file>       Specify a configuration file. 
+    --usage                   Print a usage message.
+    --help                    Print a usage message.
+    --raw                     Print the raw xml response.
+
+=head1 CONFIGURATION FILE
+
+A configuration file is used to store UCS connection information.  
+The uri, uname, passwd and log4perl command line options can be read from it. 
+Example configuration file:
+
+    [UCS]
+    URI     = http://ucs-vip/nuova
+    UNAME = admin
+    PASSWORD = Nbv12345
+
+    [APP]
+    LOG4PERL = ./config/log.conf
+
+
+=head1 SEE ALSO
+
+L<LOG4PERL> for log4perl configuration file.
+L<UcsSimple::Session>
+L<UcsSimple::CommMgr>
+L<UcsSimple::XmlUtil>
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc show-identity
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut 
+
+
+

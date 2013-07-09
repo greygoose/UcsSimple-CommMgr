@@ -7,9 +7,11 @@ Module::Build->new(
     requires => 
     {
         'Carp' =>  '>= 1.11',
+        'Class::MethodMaker' =>  '>= 2.18',
         'Config::Std' =>  '>= 0.90',
         'Data::Dumper' => '>= 2.124',
         'Exporter' => '>= 5.63',
+        'File::Spec' => '>= 3.4',
         'Getopt::Long' => '>= 2.38',
         'LWP' => '>= 5.836',
         'Log::Log4perl' => '>= 1.40',
@@ -25,6 +27,8 @@ Module::Build->new(
     },
     script_files => 
     [ 
+       'bin/monitor-sp',
+       'bin/fault-reader',
        'bin/convert-to-config',
        'bin/count-elements',
        'bin/delete-class',
@@ -39,10 +43,13 @@ Module::Build->new(
        'bin/resolve-classes',
        'bin/resolve-dn',
        'bin/resolve-dns',
+       'bin/backup-sp',
        'bin/post',
        'bin/scope',
        'bin/ucs-diff',
        'bin/xml-to-html',
+       'bin/show-identity',
+       'bin/find-sp',
     ]
 )->create_build_script;
 

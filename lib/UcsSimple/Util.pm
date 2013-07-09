@@ -123,6 +123,8 @@ sub ipToInt
     return $lIpNumber;
 }
 
+
+
 sub intToIp
 {
     my ($aInIpInt) = @_;
@@ -165,6 +167,43 @@ sub getIndent
 sub is_integer
 {
     defined $_[0] && $_[0] =~ /^\d+$/;
+}
+
+
+
+sub xmlToHtml 
+{
+    my ($aInStr) = @_;
+
+    if ($aInStr)
+    {
+        $aInStr =~ s/&/&amp;/gs;
+        $aInStr =~ s/</&lt;/gs;
+        $aInStr =~ s/>/&gt;/gs;
+        $aInStr =~ s/"/&quot;/gs;
+    }
+    return $aInStr;
+}
+
+
+
+# Example - get parent would be getAncestor(org-root/ls-bob/ether-eth0, 1);
+sub getAncestor
+{
+    my ($aInDn, $aInLevel) = @_;
+
+    my @lRns = split '/', $aInDn;
+    my $lDn = "";
+    my $lRnCount = $#lRns - $aInLevel;
+    foreach my $i (0..$lRnCount)
+    {
+        if ($i != 0)
+        {
+            $lDn = $lDn . "/";
+        }
+        $lDn .= $lRns[$i];
+    }
+    return $lDn;
 }
 
 
@@ -247,11 +286,11 @@ sub getFieldWidths
     }
     my $aInRows = $aInRefArgs->{'rows'};
 
-    if (!exists($aInRefArgs->{'headings'}))
+    my $aInHeadings = undef;
+    if (exists($aInRefArgs->{'headings'}))
     {
-        confess "Missing mandator argument: headings";
+    	$aInHeadings = $aInRefArgs->{'headings'};
     }
-    my $aInHeadings = $aInRefArgs->{'headings'};
 
     my $lFieldWidths = [];
 
@@ -259,16 +298,19 @@ sub getFieldWidths
     my $lRowNum = 0;
 
     # Get width of headings (even if no rows of data)
-    for my $lIdx (0..(@{$aInHeadings} -1))
+    if (defined($aInHeadings))
     {
-        my $lHeading = $aInHeadings->[$lIdx];
-        $lFieldWidths->[$lIdx] = length($lHeading);
+        for my $lIdx (0..(@{$aInHeadings} -1))
+        {
+            my $lHeading = $aInHeadings->[$lIdx];
+            $lFieldWidths->[$lIdx] = length($lHeading);
+        }
     }
 
     # Get width of longest field entry
     foreach my $lRow (@{$aInRows})
     {
-        if (@{$lRow} != (@{$aInHeadings}))
+        if (defined($aInHeadings) && (@{$lRow} != (@{$aInHeadings})))
         {
             confess "Number of columns not equal to number of headings";
         }
@@ -276,7 +318,8 @@ sub getFieldWidths
         {
             my $lValue = $lRow->[$lIdx];
             my $lCurrLength = (defined($lValue)) ? length ($lValue) : 0;
-            my $lMaxLength = $lFieldWidths->[$lIdx];
+            my $lMaxLength = exists($lFieldWidths->[$lIdx]) ? 
+                              $lFieldWidths->[$lIdx] : 0;
             $lFieldWidths->[$lIdx] = ($lCurrLength > $lMaxLength) ?
                 $lCurrLength : $lMaxLength;
         }
@@ -300,11 +343,11 @@ sub printTable
     }
     my $aInRows = $aInRefArgs->{'rows'};
 
-    if (!exists($aInRefArgs->{'headings'}))
+    my $aInHeadings = undef;
+    if (exists($aInRefArgs->{'headings'}))
     {
-        confess "Missing mandator argument: headings";
+    	$aInHeadings = $aInRefArgs->{'headings'};
     }
-    my $aInHeadings = $aInRefArgs->{'headings'};
 
     my $lFw;
     if (!exists($aInRefArgs->{'fieldWidths'}))
@@ -319,18 +362,21 @@ sub printTable
         $lFw = $aInRefArgs->{'fieldWidths'};
     }
 
-    for my $lIdx (0..(@{$aInHeadings} -1))
+    if (defined($aInHeadings))
     {
-        print UcsSimple::Util::getPad($aInHeadings->[$lIdx], $lFw->[$lIdx]);
-        print "   ";
+        for my $lIdx (0..(@{$aInHeadings} -1))
+        {
+            print UcsSimple::Util::getPad($aInHeadings->[$lIdx], $lFw->[$lIdx]);
+            print "   ";
+        }
+        print "\n";
     }
-    print "\n";
 
     # Print out table row by row
     my $lRowNum = 0;
     foreach my $lRow (@{$aInRows})
     {
-        if (@{$lRow} != (@{$aInHeadings}))
+        if (defined($aInHeadings) && (@{$lRow} != (@{$aInHeadings})))
         {
             confess "Number of columns not equal to number of headings";
         }

@@ -143,7 +143,6 @@ sub initLogging
 }
 
 
-
 sub sigIntHandler
 {
     get_logger(__PACKAGE__)->warn(
@@ -158,6 +157,8 @@ sub sigIntHandler
     print "Terminated by signal\n";
     exit 1;
 }
+
+
 
 __END__
 

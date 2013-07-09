@@ -534,6 +534,8 @@ sub getResolveChildrenXml
     return $lXmlRequest;
 }
 
+
+
 sub getComputeLcXml
 {
     my ($aInRefArgs) = @_;

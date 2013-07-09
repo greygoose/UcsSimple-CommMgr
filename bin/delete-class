@@ -249,7 +249,6 @@ sub initLogging
 }
 
 
-
 sub sigIntHandler
 {
     get_logger(__PACKAGE__)->warn(

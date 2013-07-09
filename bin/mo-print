@@ -241,33 +241,6 @@ sub genericPrintTable
 
 
 
-sub isSpecialProp
-{ 
-    my $aInPropName = shift;
-    return ($aInPropName =~ "^child:");
-}
-
-
-sub getSpecialPropValue 
-{
-    my ($aInElement, $aInPropName) = @_;
-
-    my $lValue = undef;
-    my ($lPre, $lChildClass, $lChildProp) = split(/:/, $aInPropName);
-    my @lChildren =  $aInElement->getElementsByTagName($lChildClass);
-
-    for my $lChild (@lChildren)
-    {
-        if ($lChild->nodeType() eq ELEMENT_NODE)
-        {
-            $lValue = $lChild->getAttribute($lChildProp);
-            last;
-        }
-    }
-    return $lValue;
-}
-
-
 # printDetail({dnElementMap=> $lDnElementMap, raw => 1});
 # printDetail({dnElementMap=> $lDnElementMap, dnOnly => 1});
 # printDetail({dnElementMap=> $lDnElementMap, moAttrPrintCfg=>lMoAttrPrintCfg});

@@ -154,7 +154,6 @@ __END__
 
 
 
-
 =head1 NAME
 
 resolve-class - get all instances of a given class (configResolveClass query).

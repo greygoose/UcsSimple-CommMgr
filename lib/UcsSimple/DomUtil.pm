@@ -113,7 +113,7 @@ sub pruneDomTree
     {
         # Handle the base case where passed in node should be deleted
         my $lClass = $aInNode->localname();
-        # print "Current element class : ($lClass)\n";
+        #print "Current element class : ($lClass)\n";
         my $lParent = $aInNode->getParentNode();
           
         if ((exists $aInDelClassMap->{$lClass}) ||
@@ -121,27 +121,27 @@ sub pruneDomTree
              (!(exists $aInKeepAttrMap->{$lClass})) &&
              $aInNode->hasAttribute("rn")))
         {
-            # print "Deleting element since class is ($lClass)\n";
+            #print "Deleting element since class is ($lClass)\n";
             $lParent->removeChild($aInNode);
         } 
         else
         {
-            # print "Keeping element since class is ($lClass)\n";
+            #print "Keeping element since class is ($lClass)\n";
             if (exists $aInKeepAttrMap->{$lClass})
             {
-                # print "Triming class ($lClass)\n";
+                #print "Triming class ($lClass)\n";
                 # Delete unwanted attributes from the node
                 my @lAttrs = $aInNode->attributes(); 
                 foreach my $lAttr (@lAttrs)
                 {
                     my $lAttrName = $lAttr->nodeName();
-                    # print "Current attribute : ($lClass)($lAttrName)\n";
+                    #print "Current attribute : ($lClass)($lAttrName)\n";
                     # Do not delete dn and rn
                     if ((!(exists $aInKeepAttrMap->{$lClass}->{$lAttrName})) && 
                        ($lAttrName ne 'dn') &&
                        ($lAttrName ne 'rn'))
                     {
-                        # print "Deleting attribute : ($lClass)($lAttrName)\n";
+                        #print "Deleting attribute : ($lClass)($lAttrName)\n";
                         $aInNode->removeAttribute($lAttrName);
                     }
                 }
@@ -821,6 +821,17 @@ sub getConfigConfMo
             }
         }
     }
+    else
+    {
+        # Assume we are passed the raw xml
+        my $lDn = $aInDoc->getAttribute("dn");
+        my $lNewNode = $aInDoc->cloneNode(1);
+        $lTargetInConfigs->addChild($lNewNode);
+
+        my $lDnAttr = $lConfMoDoc->createAttribute("dn", $lDn);
+        $lMethod->addChild($lDnAttr);
+    }
+
     return $lConfMoDoc;
 }
 

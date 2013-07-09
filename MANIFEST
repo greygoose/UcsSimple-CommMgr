@@ -27,8 +27,11 @@ bin/ucs-diff
 bin/xml-to-html
 bin/fault-reader
 bin/monitor-sp
-demo/c-series/C-SERIES-BIOS
-demo/c-series/C-SERIES-BIOS.html
+bin/backup-sp
+bin/show-identity
+bin/find-sp
+demo/c-series/C-SERIES_BIOS
+demo/c-series/C-SERIES_BIOS.html
 demo/c-series/cfg/220M3.cfg
 demo/c-series/print-cfg/fault.xml
 demo/c-series/print-cfg/firmware.xml

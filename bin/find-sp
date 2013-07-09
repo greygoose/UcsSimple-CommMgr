@@ -1,0 +1,414 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Config::Std;
+use Getopt::Long;
+use Carp qw(croak cluck confess);
+use Log::Log4perl qw (get_logger);
+
+use UcsSimple::Session;
+use UcsSimple::CommMgr;
+use UcsSimple::Util;
+use constant ELEMENT_NODE => 1;
+
+# Signal handler (assure 1 logout per login)
+$SIG{'INT'} = \&sigIntHandler;
+my $lCommMgr = undef;
+
+my $lUname = "admin";
+my $lUri = undef;
+my $lPasswd = undef;
+my $lMac = undef;
+my $lWwpn = undef;
+my $lWwn = undef;
+my $lUuid = undef;
+my $lLogCfgFile = undef;
+my $lCfgFile = undef;
+my $lRetCode = 1;
+my $lDisplay = "detail";
+
+
+# Specify the command line options and process the command line
+my $options_okay = GetOptions (
+        # Application specific options
+	'uri=s' 	=> \$lUri,          # Server uri
+	'uname=s'       => \$lUname,        # User name.
+	'passwd=s'      => \$lPasswd,       # Password.
+	'log4perl=s'    => \$lLogCfgFile,   # log4perl configuration file
+	'cfg=s'         => \$lCfgFile,      # a cfg file with application settings.
+
+        'mac=s'         => \$lMac,          # mac
+        'wwpn=s'        => \$lWwpn,         # wwpn
+        'wwn=s'         => \$lWwn,          # wwn
+        'uuid=s'        => \$lUuid,         # uuid
+
+	# Standard meta-options
+	'usage'		=> sub { usage(); },
+	'help'		=> sub { usage(); },
+);
+
+usage() if !$options_okay;
+
+if (defined($lCfgFile))
+{
+    read_config $lCfgFile => my %lConfig;
+
+    # Command line arguments take precendence.
+    # Next, we read from a configuration file.
+    $lUri = $lConfig{'UCS'}{'URI'} if (!$lUri);
+    $lUname = $lConfig{'UCS'}{'UNAME'} if (!$lUname);
+    $lPasswd = $lConfig{'UCS'}{'PASSWORD'} if (!$lPasswd);
+    $lLogCfgFile = $lConfig{'APP'}{'LOG4PERL'} if (!$lLogCfgFile);
+}
+
+usage() if ((!$lLogCfgFile) || (!$lUname) || (!$lPasswd) || (!$lUri) ||
+            ((!defined($lMac)) && (!defined($lWwpn)) && (!defined($lUuid)) && (!defined($lWwn))));
+
+initLogging($lLogCfgFile);
+
+# Create session and communication manager
+my $lSession = UcsSimple::Session->new(
+    { userName => $lUname, password => $lPasswd, uri => $lUri });
+
+$lCommMgr = UcsSimple::CommMgr->new(
+    { session => $lSession, ssl_opts => {no_verify => 1} });
+
+my $lCookie = $lCommMgr->doLogin();
+croak "Failed to get cookie" if (!defined $lCookie);
+
+my $lSuccess=undef, my $lContent=undef, my $lSpDn=undef;
+
+if (defined($lMac))
+{
+    ($lSuccess, $lContent, $lSpDn) = spFromMac({ macAddr => $lMac });
+} 
+elsif (defined($lWwn))
+{
+    ($lSuccess, $lContent, $lSpDn) = spFromWwn({ wwn => $lWwn });
+}
+elsif (defined($lWwpn))
+{
+    ($lSuccess, $lContent, $lSpDn) = spFromWwpn({ wwpn => $lWwpn });
+}
+elsif (defined($lUuid))
+{
+    ($lSuccess, $lContent, $lSpDn) = spFromUuid({ uuid => $lUuid });
+}
+else
+{
+    printUsage();
+}
+
+if ($lSuccess)
+{
+    if (defined($lSpDn))
+    {
+       print $lSpDn . "\n";
+    }
+    else
+    {
+       print "Service profile with that identity was not found\n";
+    }
+}
+else
+{
+    print "\nError retrieving data :\n" .$lContent . "\n\n";
+}
+
+
+$lCommMgr->doLogout();
+
+$lRetCode = $lSuccess ? 0 : 1;
+exit $lRetCode;
+
+
+
+# Print usage message.
+sub usage 
+{
+    print "For usage information:\n";
+    print "\n\tfind-sp\n\n";
+    exit;
+}
+
+
+
+# Given a MAC address, determine the service profile's dn
+sub spFromMac
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'macAddr'}))
+    {
+        confess "Missing mandator argument: macAddr";
+    }
+    my $aInMacAddr = $aInRefArgs->{'macAddr'};
+    my $lSpDn = undef;
+
+    my $lXmlRequest = qq% <configResolveClass cookie="REPLACE_COOKIE" classId="vnicEtherIf"><inFilter><eq class="vnicEtherIf" property="addr" value="$aInMacAddr" /></inFilter> </configResolveClass>%;
+
+    my ($lSuccess, $lContent, $lErrHashRef) =
+        $lCommMgr->doPostXML({postData => $lXmlRequest});
+
+    if ($lSuccess)
+    {
+        my $lXmlParser = XML::LibXML->new();
+        my $lXmlDoc = $lXmlParser->parse_string($lContent);
+         
+        my @lEthIfs =  $lXmlDoc->getElementsByTagName('vnicEtherIf');
+        foreach my $lEthIf (@lEthIfs)
+        {
+    	    my $lVnicDn = $lEthIf->getAttribute('dn');
+            if (length($lVnicDn) > 0)
+            {
+                $lSpDn = UcsSimple::Util::getAncestor($lVnicDn, 2);
+                last;
+            }
+        }
+    }
+    return ($lSuccess, $lContent, $lSpDn);
+}
+
+
+
+# Given a UUID address, determine the service profile's dn
+sub spFromUuid
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'uuid'}))
+    {
+        confess "Missing mandator argument: uuid";
+    }
+    my $aInUuid = $aInRefArgs->{'uuid'};
+    my $lSpDn = undef;
+
+    my $lXmlRequest = qq% <configResolveClass cookie="REPLACE_COOKIE" classId="lsServer"><inFilter><eq class="lsServer" property="uuid" value="$aInUuid" /></inFilter> </configResolveClass>%;
+
+    my ($lSuccess, $lContent, $lErrHashRef) =
+        $lCommMgr->doPostXML({postData => $lXmlRequest});
+
+    if ($lSuccess)
+    {
+        my $lXmlParser = XML::LibXML->new();
+        my $lXmlDoc = $lXmlParser->parse_string($lContent);
+         
+        my @lsServers =  $lXmlDoc->getElementsByTagName('lsServer');
+        foreach my $lsServer (@lsServers)
+        {
+    	    $lSpDn = $lsServer->getAttribute('dn');
+        }
+    }
+
+    return ($lSuccess, $lContent, $lSpDn);
+}
+
+
+
+# Given an wwn, determine the service profile's dn
+sub spFromWwn
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'wwn'}))
+    {
+        confess "Missing mandator argument: wwn";
+    }
+    my $aInWwn = $aInRefArgs->{'wwn'};
+    my $lSpDn = undef;
+
+    my $lXmlRequest = qq% <configResolveClass cookie="REPLACE_COOKIE" classId="vnicFcNode"><inFilter><eq class="vnicFcNode" property="addr" value="$aInWwn" /></inFilter> </configResolveClass>%;
+
+    my ($lSuccess, $lContent, $lErrHashRef) =
+        $lCommMgr->doPostXML({postData => $lXmlRequest});
+
+    if ($lSuccess)
+    {
+        my $lXmlParser = XML::LibXML->new();
+        my $lXmlDoc = $lXmlParser->parse_string($lContent);
+         
+        my @lFcIfs =  $lXmlDoc->getElementsByTagName('vnicFcNode');
+        foreach my $lFcIf (@lFcIfs)
+        {
+    	    my $lVnicDn = $lFcIf->getAttribute('dn');
+            if (length($lVnicDn) > 0)
+            {
+                $lSpDn = UcsSimple::Util::getAncestor($lVnicDn, 1);
+                last;
+            }
+        }
+    }
+    return ($lSuccess, $lContent, $lSpDn);
+}
+
+
+
+# Given an wwpn, determine the service profile's dn
+sub spFromWwpn
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'wwpn'}))
+    {
+        confess "Missing mandator argument: wwpn";
+    }
+    my $aInWwpn = $aInRefArgs->{'wwpn'};
+    my $lSpDn = undef;
+
+    my $lXmlRequest = qq% <configResolveClass cookie="REPLACE_COOKIE" classId="vnicFcIf"><inFilter><eq class="vnicFcIf" property="initiator" value="$aInWwpn" /></inFilter> </configResolveClass>%;
+
+    my ($lSuccess, $lContent, $lErrHashRef) =
+        $lCommMgr->doPostXML({postData => $lXmlRequest});
+
+    if ($lSuccess)
+    {
+        my $lXmlParser = XML::LibXML->new();
+        my $lXmlDoc = $lXmlParser->parse_string($lContent);
+         
+        my @lFcIfs =  $lXmlDoc->getElementsByTagName('vnicFcIf');
+        foreach my $lFcIf (@lFcIfs)
+        {
+    	    my $lVnicDn = $lFcIf->getAttribute('dn');
+            if (length($lVnicDn) > 0)
+            {
+                $lSpDn = UcsSimple::Util::getAncestor($lVnicDn, 2);
+                last;
+            }
+        }
+    }
+    return ($lSuccess, $lContent, $lSpDn);
+}
+
+
+
+sub initLogging
+{
+    my ($aInLogCfgFile) = @_;
+
+    if (defined($aInLogCfgFile))
+    {
+        Log::Log4perl::init_and_watch($aInLogCfgFile, 5);
+        get_logger(__PACKAGE__)->debug(
+            "Log configuration file: $aInLogCfgFile");
+    }
+    else
+    {
+        my $lConf = q(
+            log4perl.category = DEBUG, Logfile
+            log4perl.appender.Logfile          = Log::Log4perl::Appender::File
+            log4perl.appender.Logfile.filename = debug.log
+            log4perl.appender.Logfile.layout = Log::Log4perl::Layout::PatternLayout
+            log4perl.appender.Logfile.layout.ConversionPattern = [%p][%d][%F:%L] %m%n
+            log4perl.appender.Logfile.mode     = write
+            log4perl.appender.Logfile.main     = DEBUG
+        );
+        Log::Log4perl::init(\$lConf);
+        get_logger(__PACKAGE__)->debug(
+            "No log configuration file -using reasonable defaults");
+    }
+}
+
+
+
+sub sigIntHandler
+{
+    get_logger(__PACKAGE__)->warn(
+         "Caught signal - cleaning up");
+
+    print "Caught signal - will cleanup and exit \n";
+    $lCommMgr->doLogout();
+
+    get_logger(__PACKAGE__)->warn(
+         "Terminated by signal");
+
+    print "Terminated by signal\n";
+    exit 1;
+}
+
+
+
+__END__
+
+
+
+
+=head1 NAME
+
+find-sp - find a service profile based on identity information.
+
+=head1 USAGE
+
+find-sp[options]
+
+    perl find-sp --uname=admin --passwd=pass --mac=00:25:B5:00:FF:EF
+
+    perl find-sp --cfg=./config/demo.conf --mac=00:25:B5:00:EF:EF
+
+
+=head1 REQUIRED ARGUMENTS
+
+    --uri=<ucs-vip>           The UCS VIP uri.
+    --uname=<ucs-user>        The UCS user name.
+    --passwd=<ucs-pass>       The UCS password.
+    --mac=<mac-addr>          Mac address to search for.
+    --uuid=<uuid>             Server UUID to search for.
+    --wwn=<wwn>               WWN to search for.
+    --wwpn=<wwpn>             WWPN to search for.
+
+
+UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
+
+=head1 OPTIONS
+    --display=<disp-opt>       Display should be one of (assign, pool, detail)
+    --log4perl=<cfg-file>     The log4perl config file.
+    --cfg=<config-file>       Specify a configuration file. 
+    --usage                   Print a usage message.
+    --help                    Print a usage message.
+
+=head1 CONFIGURATION FILE
+
+A configuration file is used to store UCS connection information.  
+The uri, uname, passwd and log4perl command line options can be read from it. 
+Example configuration file:
+
+    [UCS]
+    URI     = http://ucs-vip/nuova
+    UNAME = admin
+    PASSWORD = Nbv12345
+
+    [APP]
+    LOG4PERL = ./config/log.conf
+
+
+=head1 SEE ALSO
+
+L<LOG4PERL> for log4perl configuration file.
+L<UcsSimple::Session>
+L<UcsSimple::CommMgr>
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc find-sp
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut 
+
+
+
