@@ -27,7 +27,7 @@ bin/ucs-diff
 bin/xml-to-html
 bin/fault-reader
 bin/monitor-sp
-bin/backup-sp
+bin/sp-backup-report
 bin/show-identity
 bin/find-sp
 demo/c-series/C-SERIES_BIOS

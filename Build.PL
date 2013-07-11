@@ -43,7 +43,7 @@ Module::Build->new(
        'bin/resolve-classes',
        'bin/resolve-dn',
        'bin/resolve-dns',
-       'bin/backup-sp',
+       'bin/sp-backup-report',
        'bin/post',
        'bin/scope',
        'bin/ucs-diff',

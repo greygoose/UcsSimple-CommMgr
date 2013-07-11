@@ -522,25 +522,35 @@ sub populateDn
         # Handle the base case where passed in node should be deleted
         my $lClass = $aInNode->localname();
         # print "Current element class : ($lClass)\n";
-        my $lParent = $aInNode->getParentNode();
-
-        if ((defined($aInSetDnIfHasRn) && $aInNode->hasAttribute("rn")) ||
-            (defined($aInClassHashRef) && (exists $aInClassHashRef->{$lClass})))
+        if ($lClass eq "topRoot")
         {
-            # print "Checking dn on ($lClass)\n";
-
-            my $lDn = $aInNode->getAttribute("dn");
-            my $lRn = $aInNode->getAttribute("rn");
-            # print "Determining the dn ($lDn)($lRn)\n";
-            if (!defined($lDn))
+            $aInNode->setAttribute("dn", "");
+        }
+        else
+        { 
+            my $lParent = $aInNode->getParentNode();
+            if ((defined($aInSetDnIfHasRn) && $aInNode->hasAttribute("rn")) ||
+                (defined($aInClassHashRef) && (exists $aInClassHashRef->{$lClass})))
             {
-                my $lParentDn = $lParent->getAttribute("dn");
-                if (defined($lParentDn))
-                { 
-                    $lDn = $lParentDn . "/" . $lRn;
-                    # print "Parent dn is $lParentDn \n";
-                    # print "Setting dn to: $lDn\n";
-                    $aInNode->setAttribute("dn", $lDn);
+                # print "Checking dn on ($lClass)\n";
+
+                my $lDn = $aInNode->getAttribute("dn");
+                my $lRn = $aInNode->getAttribute("rn");
+                # print "Determining the dn ($lDn)($lRn)\n";
+                if (!defined($lDn))
+                {
+                    my $lParentDn = $lParent->getAttribute("dn");
+                    if (defined($lParentDn))
+                    {
+                        if (length($lParentDn) > 0)
+                        {
+                            $lDn = $lParentDn . "/"; 
+                        }
+                        $lDn .= $lRn;
+                        # print "Parent dn is $lParentDn \n";
+                        # print "Setting dn to: $lDn\n";
+                        $aInNode->setAttribute("dn", $lDn);
+                    }
                 }
             }
         }
