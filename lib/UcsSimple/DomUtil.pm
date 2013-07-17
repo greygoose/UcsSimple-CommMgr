@@ -170,7 +170,11 @@ sub visit
 {
     my ($aInNode, $aInFnOrArrayRef) = @_;
 
-    if ($aInNode->nodeType() == DOCUMENT_NODE)
+    if (!defined($aInNode))
+    {
+        confess "Passed undefined node";
+    }
+    elsif ($aInNode->nodeType() == DOCUMENT_NODE)
     {
         visit($aInNode->getDocumentElement(), $aInFnOrArrayRef);
     }
@@ -215,6 +219,52 @@ sub getElementByDnCb
         }
     };
     return $lCb;
+}
+
+
+
+sub getElementsOfClass
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'node'}))
+    {
+        confess "Missing mandator argument: node";
+    }
+    my $aInNode = $aInRefArgs->{'node'};
+
+    if (!exists($aInRefArgs->{'class'}))
+    {
+        confess "Missing mandator argument: class";
+    }
+    my $aInClass = $aInRefArgs->{'class'};
+
+    if (!exists($aInRefArgs->{'hier'}))
+    {
+        confess "Missing mandator argument: hier";
+    }
+    my $aInHier = $aInRefArgs->{'hier'};
+
+    my $lResultArray = [];
+    if (exists($aInRefArgs->{'resultArray'}))
+    {
+        $lResultArray = $aInRefArgs->{'resultArray'};
+    }
+
+    my @lChildren =  $aInNode->getChildNodes;
+    for my $lChild (@lChildren)
+    {
+        my $lClass = $aInNode->localname;
+        if ($lClass eq $aInClass)
+        {
+            push @{$lResultArray}, $lChild;
+        }
+        if ($aInHier)
+        {
+            getElementsOfClass({node => $lChild, class => $aInClass, hier => $aInHier, resultArray => $lResultArray});
+        }
+    }
+    return $lResultArray;
 }
 
 
@@ -771,15 +821,6 @@ sub getConfigConfMo
     }
     my $aInClassMeta = $aInRefArgs->{'classMeta'};
 
-    # Take the current UCS configuration and remove non-configurable classes and attributes
-    # Pass in elements to delete and elements/attributes to keep;
-    pruneDomTree ({
-        node => $aInDoc,
-        delClassMap => $aInClassMeta->getNonConfigClasses(),
-        keepAttrMap => $aInClassMeta->getConfigAttrs(),
-        delUnknown => 1
-    });
-
     # Now create a document with the 'outConfigs' or 'outConfig' of the query
     my $lConfMoDoc = XML::LibXML::Document->createDocument("1.0");
     my $lMethod = $lConfMoDoc->createElement("configConfMo");
@@ -805,6 +846,16 @@ sub getConfigConfMo
             {
                 my $lDn = $lConfChild->getAttribute("dn");
                 my $lNewNode = $lConfChild->cloneNode(1);
+
+                # Remove non-configurable classes and attributes
+                # Pass in elements to delete and elements/attributes to keep;
+                pruneDomTree ({
+                    node => $lNewNode,
+                    delClassMap => $aInClassMeta->getNonConfigClasses(),
+                    keepAttrMap => $aInClassMeta->getConfigAttrs(),
+                    delUnknown => 1
+                });
+
                 $lTargetInConfigs->addChild($lNewNode);
 
                 my $lDnAttr = $lConfMoDoc->createAttribute("dn", $lDn);
@@ -823,8 +874,17 @@ sub getConfigConfMo
             {
                 my $lDn = $lConfChild->getAttribute("dn");
                 my $lNewNode = $lConfChild->cloneNode(1);
-                $lTargetInConfigs->addChild($lNewNode);
 
+                # Remove non-configurable classes and attributes
+                # Pass in elements to delete and elements/attributes to keep;
+                pruneDomTree ({
+                    node => $lNewNode,
+                    delClassMap => $aInClassMeta->getNonConfigClasses(),
+                    keepAttrMap => $aInClassMeta->getConfigAttrs(),
+                    delUnknown => 1
+                });
+
+                $lTargetInConfigs->addChild($lNewNode);
                 my $lDnAttr = $lConfMoDoc->createAttribute("dn", $lDn);
                 $lMethod->addChild($lDnAttr);
                 last;

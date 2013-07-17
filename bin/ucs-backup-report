@@ -54,12 +54,14 @@ my $VNIC_ETHER_POLICY_MAP = {
     "nwCtrlPolicyName" => "Network Control Policy",
     "qosPolicyName" => "QOS Policy",
     "statsPolicyName" => "Stats Policy",
+    "nwTemplName" => "Template"
 };
 
 my $VNIC_FC_POLICY_MAP = {
     "adaptorProfileName" => "Adapter Profile",
     "qosPolicyName" => "QOS Policy",
     "statsPolicyName" => "Stats Policy",
+    "nwTemplName" => "Template",
 };
 
 
@@ -92,42 +94,29 @@ initReport();
 my $lXmlParser = XML::LibXML->new();
 my $lXmlDoc = $lXmlParser->parse_file($lXmlFile);
 UcsSimple::DomUtil::populateDn($lXmlDoc, 1);
-        
-# It is handy and fast to index by class name
+
+# Keep indexed maps of all our DOM elements
 my $lClassElMap = UcsSimple::DomUtil::getElementsByClass($lXmlDoc);
 my $lDnElMap = UcsSimple::DomUtil::getElementByDn($lXmlDoc);
+
+
 
 # Get the logical SP info
 $lSpInfoMap = getSpInfo({ classElMap => $lClassElMap });
 
 getPhysInfo({ spInfoMap => $lSpInfoMap, dnElMap => $lDnElMap });
 
-printNavPage({ spInfoMap => $lSpInfoMap, dnElMap => $lDnElMap, classElMap => $lClassElMap });
+printDomainInfo({ spInfoMap => $lSpInfoMap, dnElMap => $lDnElMap, classElMap => $lClassElMap });
 
 foreach my $lSpDn (keys %{$lSpInfoMap})
 {
     my $lSpInfo = $lSpInfoMap->{$lSpDn};
     correlateInfo({ spInfo => $lSpInfo });
     getRefPolicies({ spInfo => $lSpInfo, classMeta => $lClassMeta, dnElMap => $lDnElMap });
-    printSpInfo({ spInfo => $lSpInfo });
+    printSpInfo({ spInfo => $lSpInfo, dn => $lSpDn, classElMap => $lClassElMap, dnElMap => $lDnElMap });
 }
 
 exit 0;
-
-    # TODO: Print network and storage stuff cleanly;
-    # TODO: Print out xml for the templates;
-    # TODO: Pump out xml to create the service profile.
-    # TODO: Pump out list of orgs
-    # TODO: Pump out information on our chassis and network elements;
-    # TODO: Operational summary! ARE VLANS PRINTED OUT?
-    # TODO: Template information
-    # TODO: INSTALL IT ALL!
-    # FIGURE OUT HOW TO GET A LIST OF ALL THE POLICIES REFERENCED BY THE SP AND GET THEIR CFG!
-
-    # Print a summary table for all monitored service profiles.
-    # printSummaryInfo({ spInfoMap => $lSpInfoMap });
-
-
 
 sub initLogging
 {
@@ -228,27 +217,27 @@ sub getDocHead
 
        <!-- Include Styles -->
         <link rel="stylesheet" href="assets/themes/smoothness/jquery-ui.css" />		
-        <link rel="stylesheet" href="assets/css/mytable.css" />		
-        <link rel="stylesheet" href="assets/css/page.css" />		
         <link rel="stylesheet" href="assets/css/styles.css" />		
         <!--[if IE 7]><style type="text/css">#v-nav>ul>li.current{border-right:1px solid #fff!important}#v-nav>div.tab-content{z-index:-1!important;left:0}</style><![endif]-->
         <!--[if IE 8]><style type="text/css">#v-nav>ul>li.current{border-right:1px solid #fff!important}#v-nav>div.tab-content{z-index:-1!important;left:0}</style><![endif]-->
     </head>
 
     <body>
-        <div id="tagline">
-	    <div class="row">
-                <div id="ciscoLinks">
-                    <a href="http://developer.cisco.com" class="cisco" title="Cisco UCS"> Cisco UCS </a>
-                </div>
-                <h1>
-                    <a href="http://developer.cisco.com" target="_blank">Cisco Developer's Network</a> Integrate with UCS
-                </h1>
-            </div>
-            <div style="clear: both;"></div>
-        </div>
 
-        <section id="wrapper" class="wrapper">
+        <ul id="nav">
+	    <li>
+	        <a href="index.html" title="Home">Home</a>
+            </li> 
+	    <li> 
+                <a href="https://developer.cisco.com" title="Cisco Developers Network">CDN</a>
+            </li> 
+            <li> 
+                <a href="https://communities.cisco.com/community/technology/datacenter/ucs_management" title="Communities">Communities</a>
+            </li> 
+            <li> 
+                <a href="index.html#tab10" title="About">About</a>
+            </li> 
+        </ul>
 
 END_HEAD
 
@@ -273,8 +262,7 @@ sub getTabs
                     <li tab="tab6">Hardware</li>
                     <li tab="tab7">Firmware</li>
                     <li tab="tab8">Faults</li>
-                    <li tab="tab9">Topology</li>
-                    <li tab="tab10">Configs</li>
+                    <li tab="tab9">Configs</li>
                 </ul>
 
 END_HEAD
@@ -292,8 +280,16 @@ sub getNavTabs
             <div id="v-nav">
 
                 <ul>
-                    <li tab="tab1" class="first current">Summary</li>
+                    <li tab="tab1" class="first current">Domain</li>
                     <li tab="tab2"> Service Profiles</li>
+                    <li tab="tab3"> Faults</li>
+                    <li tab="tab4"> Hardware </li>
+                    <li tab="tab5"> Firmware </li>
+                    <li tab="tab6"> LAN </li>
+                    <li tab="tab7"> SAN </li>
+                    <li tab="tab8"> Identities </li>
+                    <li tab="tab9"> Topology</li>
+                    <li tab="tab10"> About </li>
                 </ul>
 
 END_HEAD
@@ -301,6 +297,47 @@ END_HEAD
     return $lTabs;
 }
 
+
+
+sub getAboutText
+{
+    my $lText = <<'END_HEAD';
+
+<p>
+This application queries the entire UCSM MIT and stores it in an xml file.
+It then parses this file to generate some html pages to view into its contents.  
+Having the entire MIT archived is useful in a disaster recovery scenario since you 
+have both the system state and its configuration state;  Of equal importance
+is being able to extract the necessary information from the xml document and that is
+why we generate html pages.  Please note, that we only extract a sub-set of the 
+pertinent information as this software is provided for demonstration purposes only.  
+You can redistribute it and/or modify it as you wish.
+</p>
+
+<h4>TODO </h4>
+
+Some other interesting information to present would be:
+
+<ul>
+<li> network and storage templates;
+<li> lan/san connectivity policies;
+<li> show uplink, server, storage, and appliance ports;
+<li> config for service profiles;
+<li> list of organizations;
+<li> VLAN permissions;
+</ul>
+
+
+<h4>Author</h4>
+<p>
+Written by Ike Kent. 
+</p>
+
+
+END_HEAD
+
+    return $lText;
+}
 
 
 sub getDocTail
@@ -328,7 +365,7 @@ END_TAIL
 
 
 
-sub printNavPage
+sub printDomainInfo
 {
     my ($aInRefArgs) = @_;
 
@@ -342,14 +379,13 @@ sub printNavPage
     {
         confess "Missing mandator argument: classElMap";
     }
-    my $aInClassElementMap = $aInRefArgs->{'classElMap'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'dnElMap'}))
     {
         confess "Missing mandator argument: dnElMap";
     }
     my $aInDnElMap = $aInRefArgs->{'dnElMap'};
-
 
     my $lIdxFileName = File::Spec->catfile( $lAppCfg->backupDir(), 'index.html');
     open my $lFh, '>', $lIdxFileName or die "Cannot open file $lIdxFileName $!";
@@ -360,9 +396,52 @@ sub printNavPage
     my $lTabs = getNavTabs();
     print $lFh $lTabs;
 
-    printDomainInfo({ dnElMap => $lDnElMap, classElMap => $lClassElMap, fhandle => $lFh });
+    printDomainOverview({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
 
+    # 
+    # LINKS TO SP's 
+    #
     printSpNavList({ spInfoMap => $aInSpInfoMap, fhandle => $lFh });
+ 
+    # 
+    # ALL FAULT INFORMATION
+    #
+    printFaultInfo({ classElMap => $aInClassElMap, fhandle => $lFh });
+
+    # 
+    # H/W INFORMATION
+    #
+    printHardwareInfo({ classElMap => $aInClassElMap, fhandle => $lFh });
+
+    # 
+    # F/W INFORMATION
+    #
+    printFirmwareInfo({ classElMap => $aInClassElMap, fhandle => $lFh });
+
+    # 
+    # LAN INFO
+    #
+    printLanInfo({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
+
+    # 
+    # SAN INFO
+    #
+    printSanInfo({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
+
+    # 
+    # IDENTITY INFO
+    #
+    printIdentityInfo ({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
+
+    # 
+    # TOPOLOGY INFORMATION
+    #
+    printTopologyInfo ({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
+
+    # 
+    # ABOUT TEXT
+    #
+    printAboutInfo({ fhandle => $lFh });
 
     my $lTail = getDocTail();
     print $lFh $lTail; 
@@ -371,7 +450,7 @@ sub printNavPage
 
 
 
-sub printDomainInfo
+sub printDomainOverview
 {
     my ($aInRefArgs) = @_;
 
@@ -379,7 +458,7 @@ sub printDomainInfo
     {
         confess "Missing mandator argument: classElMap";
     }
-    my $aInClassElementMap = $aInRefArgs->{'classElMap'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'dnElMap'}))
     {
@@ -394,8 +473,8 @@ sub printDomainInfo
     my $aInFh = $aInRefArgs->{'fhandle'};
 
     my $lSummaryTable = "";
-    my $lRows = []; 
-    foreach my $lTopSystem (@{$aInClassElementMap->{'topSystem'}})
+    my $lRows = [];
+    foreach my $lTopSystem (@{$aInClassElMap->{'topSystem'}})
     {
         my $lRow = [];
         push @{$lRow}, "Name";
@@ -428,6 +507,28 @@ sub printDomainInfo
         rows => $lRows,
     });
 
+
+    my $lMgmtTable = "";
+    $lRows = [];
+    foreach my $lMgmtEntity (@{$aInClassElMap->{'mgmtEntity'}})
+    {
+        my $lRow = [];
+        push @{$lRow}, $lMgmtEntity->getAttribute("dn");
+        push @{$lRow}, $lMgmtEntity->getAttribute("haReady");
+        push @{$lRow}, $lMgmtEntity->getAttribute("haReadiness");
+        push @{$lRow}, $lMgmtEntity->getAttribute("id");
+        push @{$lRow}, $lMgmtEntity->getAttribute("mgmtServicesState");
+        push @{$lRow}, $lMgmtEntity->getAttribute("problems");
+        push @{$lRows}, $lRow;
+    }
+
+    $lMgmtTable = getHtmlTable({
+        rows => $lRows,
+        headings => [ "DN", "H/A Ready", "H/A Readiness", "ID", "Mgmt Services State", "Problems"],
+    });
+
+    print $aInFh "\n\n";
+
     print $aInFh "\n\n";
     print $aInFh qq%<div class="tab-content">%;
     print $aInFh "\n\n";
@@ -435,6 +536,13 @@ sub printDomainInfo
     print $aInFh "\n\n";
     print $aInFh $lSummaryTable;
     print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh "\n\n";
+    print $aInFh $lMgmtTable;
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
     print $aInFh qq%</div>%;
     print $aInFh "\n\n";
 }
@@ -459,15 +567,22 @@ sub printSpNavList
     my $aInFh = $aInRefArgs->{'fhandle'};
 
     my $lRows = []; 
-    my $lHeadings  = [ "Service Profile" ];
+    my $lHeadings  = [ "Service Profile", "Type", "Physical Node" ];
     foreach my $lSpDn (keys %{$aInSpInfoMap})
     {
         my $lSpInfo = $aInSpInfoMap->{$lSpDn};
         my $lSpFileName = $lSpInfo->filename() . '.html';
-        my @lRow;
+
+        my $lRow = [];
         my $lSpLink .= qq%<a href="$lSpFileName"> $lSpDn </a>%;
-        push @lRow, $lSpLink;
-        push @{$lRows}, \@lRow;
+        push @{$lRow}, $lSpLink;
+
+        push @{$lRow}, $lSpInfo->type();
+
+        my $lPnDn = $lSpInfo->pnDn();
+        push @{$lRow}, defined($lPnDn) ? $lPnDn : "none";
+
+        push @{$lRows}, $lRow;
     }
 
     my $lSpTable = getHtmlTable({
@@ -492,11 +607,29 @@ sub printSpInfo
 {
     my ($aInRefArgs) = @_;
 
+    if (!exists($aInRefArgs->{'dn'}))
+    {
+        confess "Missing mandator argument: dn";
+    }
+    my $aInDn = $aInRefArgs->{'dn'};
+
     if (!exists($aInRefArgs->{'spInfo'}))
     {
         confess "Missing mandator argument: spInfo";
     }
     my $aInSpInfo = $aInRefArgs->{'spInfo'};
+
+    if (!exists($aInRefArgs->{'classElMap'}))
+    {
+        confess "Missing mandator argument: classElMap";
+    }
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
+
+    if (!exists($aInRefArgs->{'dnElMap'}))
+    {
+        confess "Missing mandator argument: dnElMap";
+    }
+    my $aInDnElMap = $aInRefArgs->{'dnElMap'};
 
     my $lFileName = File::Spec->catfile( $lAppCfg->backupDir(), ($aInSpInfo->filename() . '.html') );
     open my $lFh, '>', $lFileName or die "Cannot open file $lFileName $!";
@@ -507,10 +640,24 @@ sub printSpInfo
     my $lTabs = getTabs();
     print $lFh $lTabs;
 
+    # Create a map indexed by class with all the sp and phys DOM elements
+    my $lsServer = $aInDnElMap->{$aInDn};
+    my $lSpClassElMap = UcsSimple::DomUtil::getElementsByClass($lsServer);
+    my $lPnDn = $aInSpInfo->pnDn();
+    if (defined($lPnDn))
+    {
+        if (exists $aInDnElMap->{$lPnDn})
+        {
+            my $lPhysEl = $aInDnElMap->{$lPnDn};
+            my $lPhysClassElMap = UcsSimple::DomUtil::getElementsByClass($lPhysEl);
+            $lSpClassElMap = addElMap($lSpClassElMap, $lPhysClassElMap);
+        }
+    }
+
     # 
     # GEN INFO
     # 
-    printOverviewInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
+    printOverviewInfo({ classElMap => $lSpClassElMap, spInfo => $aInSpInfo, fhandle => $lFh });
 
     # 
     # SP SUMMARY
@@ -519,38 +666,34 @@ sub printSpInfo
 
     # 
     # IDENTITY
-    # 
-    printIdentityInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
+    #
+    printSpIdentityInfo({ spInfo => $aInSpInfo, classElMap => $lSpClassElMap, fhandle => $lFh });
 
     # 
     # NETWORK INFORMATION
     #
-    printNetworkInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
+    printSpNetworkInfo({ classElMap => $lSpClassElMap, fhandle => $lFh });
 
     # 
     # STORAGE INFORMATION
     #
-    printStorageInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
+    printSpStorageInfo({ classElMap => $lSpClassElMap, fhandle => $lFh });
 
     # 
     # H/W INFORMATION
     #
-    printHardwareInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
+    printHardwareInfo({ classElMap => $lSpClassElMap, fhandle => $lFh });
 
     # 
     # F/W INFORMATION
     #
-    printFirmwareInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
+    printFirmwareInfo({ classElMap => $lSpClassElMap, fhandle => $lFh });
 
     # 
     # FAULT INFORMATION
     #
-    printFaultInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
+    printFaultInfo({ classElMap => $lSpClassElMap, fhandle => $lFh });
 
-    # 
-    # TOPOLOCY INFORMATION
-    #
-    printTopologyInfo({ spInfo => $aInSpInfo, fhandle => $lFh });
 
     # 
     # POLICY CONFIG INFORMATION
@@ -563,44 +706,25 @@ sub printSpInfo
 
 
 
-# Print out a table that summarizes candidacy and fail-over status
-# for each of our service profiles
-#
-sub printSummaryInfo
+# Combine maps of arrays 
+sub addElMap
 {
-    my ($aInRefArgs) = @_;
+    my ($aInElMapOne, $aInElMapTwo) =  @_;
 
-    if (!exists($aInRefArgs->{'spInfoMap'}))
+    foreach my $lKey (keys %{$aInElMapTwo})
     {
-        confess "Missing mandator argument: spInfoMap";
-    }
-    my $aInSpInfoMap = $aInRefArgs->{'spInfoMap'};
-
-    if (!exists($aInRefArgs->{'fhandle'}))
-    {
-        confess "Missing mandator argument: fhandle";
-    }
-    my $aInFh = $aInRefArgs->{'fhandle'};
-
-    my $lHeadings  = [ "Service Profile", "Physical Node", "Summary", "Failed", "F/O", "Faults", "Pool" ];
-    my $lRows = []; 
-    foreach my $lSpDn (keys %{$aInSpInfoMap})
-    {
-        my $lSpInfo = $aInSpInfoMap->{$lSpDn};
-        my @lRow;
-        push @lRow, $lSpInfo->dn();
-        push @lRow, $lSpInfo->pnDn();
-        push @lRow, $lSpInfo->faultCount();
-        push @lRow, $lSpInfo->poolDn();
-        push @{$lRows}, \@lRow;
+        if (exists $aInElMapOne->{$lKey})
+        {
+            $aInElMapOne->{$lKey} = \(@{$aInElMapOne->{$lKey}}, @{$aInElMapTwo->{$lKey}});
+        }
+        else
+        {
+            $aInElMapOne->{$lKey} = $aInElMapTwo->{$lKey};
+        }
     }
 
-    my $lSummaryTable = getHtmlTable({
-        rows => $lRows,
-        headings => $lHeadings,
-    });
-}
-
+    return $aInElMapOne;
+} 
 
 
 
@@ -612,11 +736,11 @@ sub getSpInfo
     {
         confess "Missing mandator argument: classElMap";
     }
-    my $aInClassElementMap = $aInRefArgs->{'classElMap'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
     my $lSpInfoMap = {};
 
     # Iterate over all service profiles
-    foreach my $lsServer (@{$aInClassElementMap->{'lsServer'}})
+    foreach my $lsServer (@{$aInClassElMap->{'lsServer'}})
     {
         my $lDn = $lsServer->getAttribute('dn');
 
@@ -738,7 +862,6 @@ sub correlateInfo
         $aInSpInfo->isInstance(1);
     }
 
-
     my $lElements = $aInSpInfo->getElementsOfClass('lsServer');
     my $lElement = $lElements->[0];
 
@@ -749,14 +872,15 @@ sub correlateInfo
     if (!exists($lPolicyRefMap->{$lSpDn}))
     {
         $lPolicyRefMap->{$lSpDn} = {};
+        $lPolicyRefMap->{$lSpDn}->{'self'} = $lSpDn;
     }
+
     foreach my $lAdminName (keys %{$SP_POLICY_MAP})
     {
         my $lOperName = 'oper' . (ucfirst $lAdminName);
         my $lOperPolicyDn = $lElement->getAttribute($lOperName);
         $lPolicyRefMap->{$lSpDn}->{$lAdminName} = $lOperPolicyDn;
     }
-        
 
 
     # 
@@ -765,10 +889,11 @@ sub correlateInfo
     $lElements = $aInSpInfo->getElementsOfClass('vnicEther');
     foreach my $lElement (@{$lElements})
     {
-            my $lDn = $lElement->getAttribute("dn");
+        my $lDn = $lElement->getAttribute("dn");
         if (!exists($lPolicyRefMap->{$lDn}))
         {
             $lPolicyRefMap->{$lDn} = {};
+            $lPolicyRefMap->{$lDn}->{'self'} = $lDn;
         }
         foreach my $lAdminName (keys %{$VNIC_ETHER_POLICY_MAP})
         {
@@ -789,6 +914,7 @@ sub correlateInfo
         if (!exists($lPolicyRefMap->{$lDn}))
         {
             $lPolicyRefMap->{$lDn} = {};
+            $lPolicyRefMap->{$lDn}->{'self'} = $lDn;
         }
         foreach my $lAdminName (keys %{$VNIC_FC_POLICY_MAP})
         {
@@ -824,8 +950,7 @@ sub getRefPolicies
     my $aInDnElMap = $aInRefArgs->{'dnElMap'};
 
     my $lSpDn = $aInSpInfo->dn();
-    if ($aInSpInfo->isInstance())
-    {
+
         # 
         # Determine all the references to policies in the SP 
         # 
@@ -871,7 +996,6 @@ sub getRefPolicies
                 $aInSpInfo->policyCfgFiles($lPolicyFileMap);
             }
         }
-    }
 }
 
 
@@ -896,7 +1020,6 @@ sub printConfigInfo
     {
         $aInIndent = $aInRefArgs->{'indent'};
     }
-
 
     # Policy configs 
     print $aInFh "\n\n";
@@ -1023,7 +1146,7 @@ sub printSpSummaryInfo
     push @{$lRows}, $lRow; 
 
     $lRow = [];
-    push @{$lRow}, "Config";
+    push @{$lRow}, "Config Qual";
     push @{$lRow}, $lElement->getAttribute("configQualifier");
     push @{$lRows}, $lRow; 
 
@@ -1038,6 +1161,7 @@ sub printSpSummaryInfo
         my $lRow = [];
         push @{$lRow}, $SP_POLICY_MAP->{$lAdminName};
         push @{$lRow}, $lElement->getAttribute($lAdminName);
+
         my $lOperName = 'oper' . (ucfirst $lAdminName);
         push @{$lRow}, $lElement->getAttribute($lOperName);
         push @{$lRows}, $lRow;
@@ -1074,15 +1198,15 @@ sub printSpSummaryInfo
 # 
 # 
 #
-sub printNetworkInfo
+sub printSpNetworkInfo
 {
     my ($aInRefArgs) = @_;
 
-    if (!exists($aInRefArgs->{'spInfo'}))
+    if (!exists($aInRefArgs->{'classElMap'}))
     {
-        confess "Missing mandator argument: spInfo";
+        confess "Missing mandator argument: classElMap";
     }
-    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'fhandle'}))
     {
@@ -1099,127 +1223,131 @@ sub printNetworkInfo
     my $lVnicTables = {};
     my $lVnicPolicyTables = {};
     my $lIfTables = {};
-    my $lElements = $aInSpInfo->getElementsOfClass('vnicEther');
-    foreach my $lElement (@{$lElements})
+
+
+    if (exists $aInClassElMap->{'vnicEther'})
     {
-        my $lRows = [];
-        my $lDn = $lElement->getAttribute('dn');
-
-        my $lRow = [];
-        push @{$lRow}, "DN";
-        push @{$lRow}, $lDn;
-        push @{$lRows}, $lRow; 
-
-        # Template information from VNIC
-        my $lTempl = $lElement->getAttribute("srcTemplName");
-        if (!(defined($lTempl) && (length $lTempl > 0)))
+        foreach my $lElement (@{$aInClassElMap->{'vnicEther'}})
         {
-            $lTempl = "none";
-        }
+            my $lRows = [];
+            my $lDn = $lElement->getAttribute('dn');
 
-        $lRow = [];
-        push @{$lRow}, "Template";
-        push @{$lRow}, $lTempl;
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Name";
-        push @{$lRow}, $lElement->getAttribute('name');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "MAC Address";
-        push @{$lRow}, $lElement->getAttribute('addr');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Fabric Id";
-        push @{$lRow}, $lElement->getAttribute('switchId');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Owner";
-        push @{$lRow}, $lElement->getAttribute('owner');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Type";
-        push @{$lRow}, $lElement->getAttribute('type');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Equipment";
-        push @{$lRow}, $lElement->getAttribute('equipmentDn');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Boot Device";
-        push @{$lRow}, $lElement->getAttribute('bootDev');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "MTU";
-        push @{$lRow}, $lElement->getAttribute('mtu');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Virutalization Preference";
-        push @{$lRow}, $lElement->getAttribute('virtualizationPreference');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Oper Speed";
-        push @{$lRow}, $lElement->getAttribute('operSpeed');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "State";
-        push @{$lRow}, $lElement->getAttribute('configState');
-        push @{$lRows}, $lRow; 
-
-        my $lVnicTable = getHtmlTable({
-            rows => $lRows,
-        });
-
-        $lVnicTables->{$lDn} = $lVnicTable;
-
-        $lRows = [];
-        foreach my $lAdminName (keys %{$VNIC_ETHER_POLICY_MAP})
-        {
             my $lRow = [];
-            push @{$lRow}, $VNIC_ETHER_POLICY_MAP->{$lAdminName};
-            push @{$lRow}, $lElement->getAttribute($lAdminName);
-            my $lOperName = 'oper' . (ucfirst $lAdminName);
-            push @{$lRow}, $lElement->getAttribute($lOperName);
-            push @{$lRows}, $lRow;
+            push @{$lRow}, "DN";
+            push @{$lRow}, $lDn;
+            push @{$lRows}, $lRow; 
+
+            # Template information from VNIC
+            my $lTempl = $lElement->getAttribute("srcTemplName");
+            if (!(defined($lTempl) && (length $lTempl > 0)))
+            {
+                $lTempl = "none";
+            }
+
+            $lRow = [];
+            push @{$lRow}, "Template";
+            push @{$lRow}, $lTempl;
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Name";
+            push @{$lRow}, $lElement->getAttribute('name');
+            push @{$lRows}, $lRow; 
+    
+            $lRow = [];
+            push @{$lRow}, "MAC Address";
+            push @{$lRow}, $lElement->getAttribute('addr');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Fabric Id";
+            push @{$lRow}, $lElement->getAttribute('switchId');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Owner";
+            push @{$lRow}, $lElement->getAttribute('owner');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Type";
+            push @{$lRow}, $lElement->getAttribute('type');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Equipment";
+            push @{$lRow}, $lElement->getAttribute('equipmentDn');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Boot Device";
+            push @{$lRow}, $lElement->getAttribute('bootDev');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "MTU";
+            push @{$lRow}, $lElement->getAttribute('mtu');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Virutalization Preference";
+            push @{$lRow}, $lElement->getAttribute('virtualizationPreference');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Oper Speed";
+            push @{$lRow}, $lElement->getAttribute('operSpeed');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "State";
+            push @{$lRow}, $lElement->getAttribute('configState');
+            push @{$lRows}, $lRow; 
+
+            my $lVnicTable = getHtmlTable({
+                rows => $lRows,
+            });
+    
+            $lVnicTables->{$lDn} = $lVnicTable;
+
+            $lRows = [];
+            foreach my $lAdminName (keys %{$VNIC_ETHER_POLICY_MAP})
+            {
+                my $lRow = [];
+                push @{$lRow}, $VNIC_ETHER_POLICY_MAP->{$lAdminName};
+                push @{$lRow}, $lElement->getAttribute($lAdminName);
+                my $lOperName = 'oper' . (ucfirst $lAdminName);
+                push @{$lRow}, $lElement->getAttribute($lOperName);
+                push @{$lRows}, $lRow;
+            }
+
+            my $lVnicPolicyTable = getHtmlTable({
+                rows => $lRows,
+                headings => [ "Policy Name", "Admin Policy", "Oper Policy" ],
+            });
+
+            $lVnicPolicyTables->{$lDn} =  $lVnicPolicyTable;
+
+            my @lIfs =  $lElement->getElementsByTagName('vnicEtherIf');
+            $lRows = [];
+            foreach my $lIf (@lIfs)
+            {
+                my $lRow = [];
+                push @{$lRow}, $lIf->getAttribute("dn");
+                push @{$lRow}, $lIf->getAttribute("switchId");
+                push @{$lRow}, $lIf->getAttribute("operVnetName");
+                push @{$lRow}, $lIf->getAttribute("vnet");
+                push @{$lRow}, $lIf->getAttribute("defaultNet");
+                push @{$lRow}, $lIf->getAttribute("addr");
+                push @{$lRows}, $lRow;
+            }
+
+            my $lIfTable = getHtmlTable({
+                rows => $lRows,
+                headings => [ "DN", "Switch", "Oper VNET", "Oper VLAN ID", "Default Network", "MAC Address" ],
+            });
+            $lIfTables->{$lDn} = $lIfTable;
         }
-
-        my $lVnicPolicyTable = getHtmlTable({
-            rows => $lRows,
-            headings => [ "Policy Name", "Admin Policy", "Oper Policy" ],
-        });
-
-        $lVnicPolicyTables->{$lDn} =  $lVnicPolicyTable;
-
-        my @lIfs =  $lElement->getElementsByTagName('vnicEtherIf');
-        $lRows = [];
-        foreach my $lIf (@lIfs)
-        {
-            my $lRow = [];
-            push @{$lRow}, $lIf->getAttribute("dn");
-            push @{$lRow}, $lIf->getAttribute("switchId");
-            push @{$lRow}, $lIf->getAttribute("operVnetName");
-            push @{$lRow}, $lIf->getAttribute("vnet");
-            push @{$lRow}, $lIf->getAttribute("defaultNet");
-            push @{$lRow}, $lIf->getAttribute("addr");
-            push @{$lRows}, $lRow;
-        }
-
-        my $lIfTable = getHtmlTable({
-            rows => $lRows,
-            headings => [ "DN", "Switch", "Oper VNET", "Oper VLAN ID", "Default Network", "MAC Address" ],
-        });
-        $lIfTables->{$lDn} = $lIfTable;
     }
 
     print $aInFh "\n\n";
@@ -1273,15 +1401,15 @@ sub printNetworkInfo
 
 
 
-sub printStorageInfo
+sub printSpStorageInfo
 {
     my ($aInRefArgs) = @_;
 
-    if (!exists($aInRefArgs->{'spInfo'}))
+    if (!exists($aInRefArgs->{'classElMap'}))
     {
-        confess "Missing mandator argument: spInfo";
+        confess "Missing mandator argument: classElMap";
     }
-    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'fhandle'}))
     {
@@ -1298,115 +1426,118 @@ sub printStorageInfo
     my $lVnicTables = {};
     my $lVnicPolicyTables = {};
     my $lIfTables = {};
-    my $lElements = $aInSpInfo->getElementsOfClass('vnicFc');
-    foreach my $lElement (@{$lElements})
+
+    if (exists $aInClassElMap->{'vnicEther'})
     {
-        my $lRows = [];
-        my $lDn = $lElement->getAttribute('dn');
-
-        my $lRow = [];
-        push @{$lRow}, "DN";
-        push @{$lRow}, $lDn;
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Name";
-        push @{$lRow}, $lElement->getAttribute('name');
-        push @{$lRows}, $lRow; 
-
-        # Template information from VNIC
-        my $lTempl = $lElement->getAttribute("srcTemplName");
-        if (!(defined($lTempl) && (length $lTempl > 0)))
+        foreach my $lElement (@{$aInClassElMap->{'vnicFc'}})
         {
-            $lTempl = "none";
-        }
-        $lRow = [];
-        push @{$lRow}, "Template";
-        push @{$lRow}, $lTempl;
-        push @{$lRows}, $lRow; 
+            my $lRows = [];
+            my $lDn = $lElement->getAttribute('dn');
 
-        $lRow = [];
-        push @{$lRow}, "WWN Address";
-        push @{$lRow}, $lElement->getAttribute('addr');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Fabric Id";
-        push @{$lRow}, $lElement->getAttribute('switchId');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Owner";
-        push @{$lRow}, $lElement->getAttribute('owner');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Type";
-        push @{$lRow}, $lElement->getAttribute('type');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Equipment";
-        push @{$lRow}, $lElement->getAttribute('equipmentDn');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Boot Device";
-        push @{$lRow}, $lElement->getAttribute('bootDev');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "Oper Speed";
-        push @{$lRow}, $lElement->getAttribute('operSpeed');
-        push @{$lRows}, $lRow; 
-
-        $lRow = [];
-        push @{$lRow}, "State";
-        push @{$lRow}, $lElement->getAttribute('configState');
-        push @{$lRows}, $lRow; 
-
-        my $lVnicTable = getHtmlTable({
-            rows => $lRows,
-        });
-
-        $lVnicTables->{$lDn} = $lVnicTable;
-
-        $lRows = [];
-        foreach my $lAdminName (keys %{$VNIC_FC_POLICY_MAP})
-        {
             my $lRow = [];
-            push @{$lRow}, $VNIC_FC_POLICY_MAP->{$lAdminName};
-            push @{$lRow}, $lElement->getAttribute($lAdminName);
-            my $lOperName = 'oper' . (ucfirst $lAdminName);
-            push @{$lRow}, $lElement->getAttribute($lOperName);
-            push @{$lRows}, $lRow;
+            push @{$lRow}, "DN";
+            push @{$lRow}, $lDn;
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Name";
+            push @{$lRow}, $lElement->getAttribute('name');
+            push @{$lRows}, $lRow; 
+
+            # Template information from VNIC
+            my $lTempl = $lElement->getAttribute("srcTemplName");
+            if (!(defined($lTempl) && (length $lTempl > 0)))
+            {
+                $lTempl = "none";
+            }
+            $lRow = [];
+            push @{$lRow}, "Template";
+            push @{$lRow}, $lTempl;
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "WWN Address";
+            push @{$lRow}, $lElement->getAttribute('addr');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Fabric Id";
+            push @{$lRow}, $lElement->getAttribute('switchId');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Owner";
+            push @{$lRow}, $lElement->getAttribute('owner');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Type";
+            push @{$lRow}, $lElement->getAttribute('type');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Equipment";
+            push @{$lRow}, $lElement->getAttribute('equipmentDn');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Boot Device";
+            push @{$lRow}, $lElement->getAttribute('bootDev');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "Oper Speed";
+            push @{$lRow}, $lElement->getAttribute('operSpeed');
+            push @{$lRows}, $lRow; 
+
+            $lRow = [];
+            push @{$lRow}, "State";
+            push @{$lRow}, $lElement->getAttribute('configState');
+            push @{$lRows}, $lRow; 
+
+            my $lVnicTable = getHtmlTable({
+                rows => $lRows,
+            });
+
+            $lVnicTables->{$lDn} = $lVnicTable;
+
+            $lRows = [];
+            foreach my $lAdminName (keys %{$VNIC_FC_POLICY_MAP})
+            {
+                my $lRow = [];
+                push @{$lRow}, $VNIC_FC_POLICY_MAP->{$lAdminName};
+                push @{$lRow}, $lElement->getAttribute($lAdminName);
+                my $lOperName = 'oper' . (ucfirst $lAdminName);
+                push @{$lRow}, $lElement->getAttribute($lOperName);
+                push @{$lRows}, $lRow;
+            }
+
+            my $lVnicPolicyTable = getHtmlTable({
+                rows => $lRows,
+                headings => [ "Policy Name", "Admin Policy", "Oper Policy" ],
+            });
+
+            $lVnicPolicyTables->{$lDn} =  $lVnicPolicyTable;
+
+            my @lIfs =  $lElement->getElementsByTagName('vnicFcIf');
+            $lRows = [];
+            foreach my $lIf (@lIfs)
+            {
+                my $lRow = [];
+                push @{$lRow}, $lIf->getAttribute("dn");
+                push @{$lRow}, $lIf->getAttribute("switchId");
+                push @{$lRow}, $lIf->getAttribute("operVnetName");
+                push @{$lRow}, $lIf->getAttribute("vnet");
+                push @{$lRow}, $lIf->getAttribute("initiator");
+                push @{$lRows}, $lRow;
+            }
+
+            my $lIfTable = getHtmlTable({
+                rows => $lRows,
+                headings => [ "DN", "Switch", "Oper VNET", "Oper VLAN ID", "Initiator" ],
+            });
+            $lIfTables->{$lDn} = $lIfTable;
         }
-
-        my $lVnicPolicyTable = getHtmlTable({
-            rows => $lRows,
-            headings => [ "Policy Name", "Admin Policy", "Oper Policy" ],
-        });
-
-        $lVnicPolicyTables->{$lDn} =  $lVnicPolicyTable;
-
-        my @lIfs =  $lElement->getElementsByTagName('vnicFcIf');
-        $lRows = [];
-        foreach my $lIf (@lIfs)
-        {
-            my $lRow = [];
-            push @{$lRow}, $lIf->getAttribute("dn");
-            push @{$lRow}, $lIf->getAttribute("switchId");
-            push @{$lRow}, $lIf->getAttribute("operVnetName");
-            push @{$lRow}, $lIf->getAttribute("vnet");
-            push @{$lRow}, $lIf->getAttribute("initiator");
-            push @{$lRows}, $lRow;
-        }
-
-        my $lIfTable = getHtmlTable({
-            rows => $lRows,
-            headings => [ "DN", "Switch", "Oper VNET", "Oper VLAN ID", "Initiator" ],
-        });
-        $lIfTables->{$lDn} = $lIfTable;
     }
 
     print $aInFh "\n\n";
@@ -1462,7 +1593,7 @@ sub printStorageInfo
 # 
 # 
 #
-sub printStorageInfoXXX
+sub printSpStorageInfoXXX
 {
     my ($aInRefArgs) = @_;
 
@@ -1557,18 +1688,15 @@ sub printStorageInfoXXX
 
 
 
-# 
-# 
-#
 sub printFirmwareInfo
 {
     my ($aInRefArgs) = @_;
 
-    if (!exists($aInRefArgs->{'spInfo'}))
+    if (!exists($aInRefArgs->{'classElMap'}))
     {
-        confess "Missing mandator argument: spInfo";
+        confess "Missing mandator argument: classElMap";
     }
-    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'fhandle'}))
     {
@@ -1576,32 +1704,233 @@ sub printFirmwareInfo
     }
     my $aInFh = $aInRefArgs->{'fhandle'};
 
-    my $lElements = $aInSpInfo->getElementsOfClass('firmwareRunning');
-
+    my $lFwTable = "";
     my $lRows = [];
-    foreach my $lElement (@{$lElements})
+    if (exists $aInClassElMap->{'firmwareRunning'})
     {
-        my $lRow = [];
-        push @{$lRow}, $lElement->getAttribute("dn");
-        push @{$lRow}, $lElement->getAttribute("deployment");
-        push @{$lRow}, $lElement->getAttribute("type");
-        push @{$lRow}, $lElement->getAttribute("packageVersion");
-        push @{$lRow}, $lElement->getAttribute("version");
-        push @{$lRows}, $lRow;
-    }
+        foreach my $lElement (@{$aInClassElMap->{'firmwareRunning'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("deployment");
+            push @{$lRow}, $lElement->getAttribute("type");
+            push @{$lRow}, $lElement->getAttribute("packageVersion");
+            push @{$lRow}, $lElement->getAttribute("version");
+            push @{$lRows}, $lRow;
+        }
 
-    my $lFwTable = getHtmlTable({
-        rows => $lRows,
-        headings => [ qw / DN Deployment Type Package Version / ],
-    });
+        $lFwTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ qw / DN Deployment Type Package Version / ],
+        });
+    }
 
     print $aInFh "\n\n";
     print $aInFh qq%<div class="tab-content">%;
     print $aInFh "\n\n";
 
-    print $aInFh qq%<H4> Firmware </H4>%;
+    if (length($lFwTable) > 0)
+    {
+        print $aInFh qq%<H4> Firmware </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lFwTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
+    print $aInFh qq%</div>%;
+    print $aInFh "\n\n";
+}
+
+
+sub printLanInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'classElMap'}))
+    {
+        confess "Missing mandator argument: classElMap";
+    }
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
+
+    if (!exists($aInRefArgs->{'dnElMap'}))
+    {
+        confess "Missing mandator argument: dnElMap";
+    }
+    my $aInDnElMap = $aInRefArgs->{'dnElMap'};
+
+    if (!exists($aInRefArgs->{'fhandle'}))
+    {
+        confess "Missing mandator argument: fhandle";
+    }
+    my $aInFh = $aInRefArgs->{'fhandle'};
+
+    my $lRows = [];
+    if (exists $aInDnElMap->{'fabric/lan'})
+    {
+        my $lLanCloud = $aInDnElMap->{'fabric/lan'};
+
+        my $lClassElArray = UcsSimple::DomUtil::getElementsOfClass(
+            { node => $lLanCloud, class => 'fabricVlan', hier => 1});
+
+        foreach my $lElement (@{$aInClassElMap->{'fabricVlan'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("name");
+            push @{$lRow}, $lElement->getAttribute("id");
+            push @{$lRow}, $lElement->getAttribute("switchId");
+            push @{$lRow}, $lElement->getAttribute("defaultNet");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("transport");
+            push @{$lRows}, $lRow;
+        }
+    }
+
+    my $lLcTable = getHtmlTable({
+        rows => $lRows,
+        headings => [ "DN",  "Name", "Id",  "Switch Id",  "Default Network", "Oper State", "Transport" ],
+    });
+
+    $lRows = [];
+    if (exists $aInDnElMap->{'fabric/eth-estc'})
+    {
+        my $lEstc = $aInDnElMap->{'fabric/eth-estc'};
+
+        my $lClassElArray = UcsSimple::DomUtil::getElementsOfClass(
+            { node => $lEstc, class => 'fabricVlan', hier => 1});
+
+        foreach my $lElement (@{$aInClassElMap->{'fabricVlan'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("name");
+            push @{$lRow}, $lElement->getAttribute("id");
+            push @{$lRow}, $lElement->getAttribute("switchId");
+            push @{$lRow}, $lElement->getAttribute("defaultNet");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("transport");
+            push @{$lRows}, $lRow;
+        }
+    }
+
+    my $lEstcTable = getHtmlTable({
+        rows => $lRows,
+        headings => [ "DN",  "Name", "Id",  "Switch Id",  "Default Network", "Oper State", "Transport" ],
+    });
+
+
+    print $aInFh "\n\n";
+    print $aInFh qq%<div class="tab-content">%;
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> LAN </H4>%;
     print $aInFh "\n";
-    print $aInFh $lFwTable;
+    print $aInFh $lLcTable;
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> ESTC</H4>%;
+    print $aInFh "\n";
+    print $aInFh $lEstcTable;
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%</div>%;
+    print $aInFh "\n\n";
+}
+
+
+sub printSanInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'classElMap'}))
+    {
+        confess "Missing mandator argument: classElMap";
+    }
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
+
+    if (!exists($aInRefArgs->{'dnElMap'}))
+    {
+        confess "Missing mandator argument: dnElMap";
+    }
+    my $aInDnElMap = $aInRefArgs->{'dnElMap'};
+
+    if (!exists($aInRefArgs->{'fhandle'}))
+    {
+        confess "Missing mandator argument: fhandle";
+    }
+    my $aInFh = $aInRefArgs->{'fhandle'};
+
+    my $lRows = [];
+    if (exists $aInDnElMap->{'fabric/san'})
+    {
+        my $lLanCloud = $aInDnElMap->{'fabric/san'};
+
+        my $lClassElArray = UcsSimple::DomUtil::getElementsOfClass(
+            { node => $lLanCloud, class => 'fabricVsan', hier => 1});
+
+        foreach my $lElement (@{$aInClassElMap->{'fabricVsan'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("name");
+            push @{$lRow}, $lElement->getAttribute("id");
+            push @{$lRow}, $lElement->getAttribute("switchId");
+            push @{$lRow}, $lElement->getAttribute("defaultZoning");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("transport");
+            push @{$lRows}, $lRow;
+        }
+    }
+
+    my $lSanTable = getHtmlTable({
+        rows => $lRows,
+        headings => [ "DN",  "Name", "Id",  "Switch Id",  "Default Zoning", "Oper State", "Transport" ],
+    });
+
+    $lRows = [];
+    if (exists $aInDnElMap->{'fabric/eth-estc'})
+    {
+        my $lEstc = $aInDnElMap->{'fabric/eth-estc'};
+
+        my $lClassElArray = UcsSimple::DomUtil::getElementsOfClass(
+            { node => $lEstc, class => 'fabricVsan', hier => 1});
+
+        foreach my $lElement (@{$aInClassElMap->{'fabricVsan'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("name");
+            push @{$lRow}, $lElement->getAttribute("id");
+            push @{$lRow}, $lElement->getAttribute("switchId");
+            push @{$lRow}, $lElement->getAttribute("defaultZoning");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("transport");
+            push @{$lRows}, $lRow;
+        }
+    }
+
+    my $lEstcTable = getHtmlTable({
+        rows => $lRows,
+        headings => [ "DN",  "Name", "Id",  "Switch Id",  "Default Zoning", "Oper State", "Transport" ],
+    });
+
+
+    print $aInFh "\n\n";
+    print $aInFh qq%<div class="tab-content">%;
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> SAN </H4>%;
+    print $aInFh "\n";
+    print $aInFh $lSanTable;
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> ESTC</H4>%;
+    print $aInFh "\n";
+    print $aInFh $lEstcTable;
     print $aInFh "</br>";
     print $aInFh "\n\n";
 
@@ -1611,18 +1940,43 @@ sub printFirmwareInfo
 
 
 
-# 
-# 
-#
+sub printAboutInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'fhandle'}))
+    {
+        confess "Missing mandator argument: fhandle";
+    }
+    my $aInFh = $aInRefArgs->{'fhandle'};
+
+    my $lAboutText = getAboutText();
+
+    print $aInFh "\n\n";
+    print $aInFh qq%<div class="tab-content">%;
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> Firmware </H4>%;
+    print $aInFh "\n";
+    print $aInFh $lAboutText;
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%</div>%;
+    print $aInFh "\n\n";
+}
+
+
+
 sub printIdentityInfo
 {
     my ($aInRefArgs) = @_;
 
-    if (!exists($aInRefArgs->{'spInfo'}))
+    if (!exists($aInRefArgs->{'classElMap'}))
     {
-        confess "Missing mandator argument: spInfo";
+        confess "Missing mandator argument: classElMap";
     }
-    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'fhandle'}))
     {
@@ -1632,69 +1986,241 @@ sub printIdentityInfo
 
     my $lRows = [];
 
-    if ($aInSpInfo->foundPhys())
-    {
+        #
+        # fcpoolAddr
+        #
+        if (exists $aInClassElMap->{'fcpoolAddr'})
+        {
+            foreach my $lElement (@{$aInClassElMap->{'fcpoolAddr'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, $lElement->getAttribute("id");
+                push @{$lRow}, $lElement->getAttribute("assigned");
+                push @{$lRow}, $lElement->getAttribute("owner");
+                push @{$lRow}, $lElement->getAttribute("assignedToDn");
+                push @{$lRows}, $lRow;
+            }
+        }
+        my $lFcTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "WWN",  "Assigned", "Owner", "Assigned To"],
+        });
 
+
+        #
+        # macpoolAddr
+        #
+        $lRows = [];
+        if (exists $aInClassElMap->{'macpoolAddr'})
+        {
+            foreach my $lElement (@{$aInClassElMap->{'macpoolAddr'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, $lElement->getAttribute("id");
+                push @{$lRow}, $lElement->getAttribute("assigned");
+                push @{$lRow}, $lElement->getAttribute("owner");
+                push @{$lRow}, $lElement->getAttribute("assignedToDn");
+                push @{$lRows}, $lRow;
+            }
+        }
+        my $lMacTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "MAC",  "Assigned", "Owner", "Assigned To"],
+        });
+
+
+
+        #
+        # uuidpoolAddr
+        #
+        $lRows = [];
+        if (exists $aInClassElMap->{'uuidpoolAddr'})
+        {
+            foreach my $lElement (@{$aInClassElMap->{'uuidpoolAddr'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, $lElement->getAttribute("id");
+                push @{$lRow}, $lElement->getAttribute("assigned");
+                push @{$lRow}, $lElement->getAttribute("owner");
+                push @{$lRow}, $lElement->getAttribute("assignedToDn");
+                push @{$lRows}, $lRow;
+            }
+        }
+
+        my $lUuidTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "UUID",  "Assigned", "Owner", "Assigned To" ],
+        });
+
+
+
+        $lRows = [];
+        if (exists $aInClassElMap->{'ippoolAddr'})
+        {
+            foreach my $lElement (@{$aInClassElMap->{'ippoolAddr'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, $lElement->getAttribute("id");
+                push @{$lRow}, $lElement->getAttribute("assigned");
+                push @{$lRow}, $lElement->getAttribute("owner");
+                push @{$lRow}, $lElement->getAttribute("assignedToDn");
+                push @{$lRows}, $lRow;
+            }
+        }
+
+        my $lIpTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "IP",  "Assigned", "Owner", "Assigned To" ],
+        });
+
+
+
+        $lRows = [];
+        if (exists $aInClassElMap->{'iqnpoolAddr'})
+        {
+            foreach my $lElement (@{$aInClassElMap->{'iqnpoolAddr'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, $lElement->getAttribute("name");
+                push @{$lRow}, $lElement->getAttribute("assigned");
+                push @{$lRow}, $lElement->getAttribute("owner");
+                push @{$lRow}, $lElement->getAttribute("assignedToDn");
+                push @{$lRows}, $lRow;
+            }
+        }
+
+        my $lIqnTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "IP",  "Assigned", "Owner", "Assigned To" ],
+        });
+
+
+    print $aInFh "\n\n";
+    print $aInFh qq%<div class="tab-content">%;
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> UUIDs </H4>%;
+    print $aInFh "\n";
+    print $aInFh $lUuidTable; 
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> Macs </H4>%;
+    print $aInFh "\n";
+    print $aInFh $lMacTable; 
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> WWNs </H4>%;
+    print $aInFh "\n";
+    print $aInFh $lFcTable; 
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> IPs </H4>%;
+    print $aInFh "\n";
+    print $aInFh $lIpTable; 
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%<H4> IQNs </H4>%;
+    print $aInFh "\n";
+    print $aInFh $lIqnTable; 
+    print $aInFh "</br>";
+    print $aInFh "\n\n";
+
+    print $aInFh qq%</div>%;
+    print $aInFh "\n\n";
+
+}
+
+
+sub printSpIdentityInfo
+{
+    my ($aInRefArgs) = @_;
+
+    if (!exists($aInRefArgs->{'spInfo'}))
+    {
+        confess "Missing mandator argument: spInfo";
+    }
+    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+
+    if (!exists($aInRefArgs->{'classElMap'}))
+    {
+        confess "Missing mandator argument: classElMap";
+    }
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
+
+    if (!exists($aInRefArgs->{'fhandle'}))
+    {
+        confess "Missing mandator argument: fhandle";
+    }
+    my $aInFh = $aInRefArgs->{'fhandle'};
+
+    my $lRows = [];
+    {
         #
         # UUID  
         #
-    	my $lPhysClass = $aInSpInfo->physClass();
-        my $lElements = $aInSpInfo->getElementsOfClass($lPhysClass);
-        foreach my $lElement (@{$lElements})
+        my $lPhysClass = $aInSpInfo->physClass();
+        if (exists $aInClassElMap->{'vnicEtherIf'})
         {
-            my $lRow = [];
-            push @{$lRow}, "UUID";
-            push @{$lRow}, $lElement->getAttribute("dn");
-            push @{$lRow}, $lElement->getAttribute("uuid");
-            push @{$lRows}, $lRow;
+            foreach my $lElement (@{$aInClassElMap->{$lPhysClass}})
+            {
+                my $lRow = [];
+                push @{$lRow}, "UUID";
+                push @{$lRow}, $lElement->getAttribute("dn");
+                push @{$lRow}, $lElement->getAttribute("uuid");
+                push @{$lRows}, $lRow;
+            }
         }
-    }
 
-    {
-        my $lElements = $aInSpInfo->getElementsOfClass('vnicEtherIf');
-        foreach my $lElement (@{$lElements})
+        if (exists $aInClassElMap->{'vnicEtherIf'})
         {
-            my $lRow = [];
-            push @{$lRow}, "MAC Address";
-            push @{$lRow}, $lElement->getAttribute("dn");
-            push @{$lRow}, $lElement->getAttribute("addr");
-            push @{$lRows}, $lRow;
+            foreach my $lElement (@{$aInClassElMap->{'vnicEtherIf'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, "MAC Address";
+                push @{$lRow}, $lElement->getAttribute("dn");
+                push @{$lRow}, $lElement->getAttribute("addr");
+                push @{$lRows}, $lRow;
+            }
         }
-    }
 
-    {
-        my $lElements = $aInSpInfo->getElementsOfClass('vnicFcNode');
-        foreach my $lElement (@{$lElements})
+        if (exists $aInClassElMap->{'vnicFcNode'})
         {
-            my $lRow = [];
-            push @{$lRow}, "World Wide Node Name";
-            push @{$lRow}, $lElement->getAttribute("dn");
-            push @{$lRow}, $lElement->getAttribute("addr");
-            push @{$lRows}, $lRow;
+            foreach my $lElement (@{$aInClassElMap->{'vnicFcNode'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, "World Wide Node Name";
+                push @{$lRow}, $lElement->getAttribute("dn");
+                push @{$lRow}, $lElement->getAttribute("addr");
+                push @{$lRows}, $lRow;
+            }
         }
-    }
 
-    {
-        my $lElements = $aInSpInfo->getElementsOfClass('vnicIP4VPooledAddr');
-        foreach my $lElement (@{$lElements})
+        if (exists $aInClassElMap->{'vnicIP4VPooledAddr'})
         {
-            my $lRow = [];
-            push @{$lRow}, "Management IP";
-            push @{$lRow}, $lElement->getAttribute("dn");
-            push @{$lRow}, $lElement->getAttribute("addr");
-            push @{$lRows}, $lRow;
+            foreach my $lElement (@{$aInClassElMap->{'vnicIP4VPooledAddr'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, "Management IP";
+                push @{$lRow}, $lElement->getAttribute("dn");
+                push @{$lRow}, $lElement->getAttribute("addr");
+                push @{$lRows}, $lRow;
+            }
         }
-    }
 
-    {
-        my $lElements = $aInSpInfo->getElementsOfClass('vnicIpV4StaticAddr');
-        foreach my $lElement (@{$lElements})
+        if (exists $aInClassElMap->{'vnicIP4StaticAddr'})
         {
-            my $lRow = [];
-            push @{$lRow}, "Management IP";
-            push @{$lRow}, $lElement->getAttribute("dn");
-            push @{$lRow}, $lElement->getAttribute("addr");
-            push @{$lRows}, $lRow;
+            foreach my $lElement (@{$aInClassElMap->{'vnicIP4VStaticAddr'}})
+            {
+                my $lRow = [];
+                push @{$lRow}, "Management IP";
+                push @{$lRow}, $lElement->getAttribute("dn");
+                push @{$lRow}, $lElement->getAttribute("addr");
+                push @{$lRows}, $lRow;
+            }
         }
     }
 
@@ -1727,11 +2253,11 @@ sub printHardwareInfo
 {
     my ($aInRefArgs) = @_;
 
-    if (!exists($aInRefArgs->{'spInfo'}))
+    if (!exists($aInRefArgs->{'classElMap'}))
     {
-        confess "Missing mandator argument: spInfo";
+        confess "Missing mandator argument: classElMap";
     }
-    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'fhandle'}))
     {
@@ -1740,20 +2266,152 @@ sub printHardwareInfo
     my $aInFh = $aInRefArgs->{'fhandle'};
 
 
+    my $lNeTable = "";
+    my $lNetworkElementTable = "";
+    my $lChassisTable = "";
     my $lComputeBoardTable = "";
     my $lProcessorUnitTable = "";
     my $lMemoryUnitTable = "";
     my $lAdaptorUnitTable = "";
+    my $lStorageControllerTable = "";
     my $lPhysTable = "";
-    if ($aInSpInfo->foundPhys())
+    my $lPsuTable = "";
+    my $lFanModuleTable = "";
+    my $lFanTable = "";
+
+
+    #
+    # NETWORK ELEMENT
+    #
+    my $lRows = [];
+    if (exists $aInClassElMap->{'networkElement'})
     {
-        #
-        # COMPUTE PHYSICAL
-        #
-        my $lRows = [];
-    	my $lPhysClass = $aInSpInfo->physClass();
-        my $lElements = $aInSpInfo->getElementsOfClass($lPhysClass);
-        foreach my $lElement (@{$lElements})
+        foreach my $lElement (@{$aInClassElMap->{'networkElement'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("vendor");
+            push @{$lRow}, $lElement->getAttribute("model");
+            push @{$lRow}, $lElement->getAttribute("serial");
+            push @{$lRow}, $lElement->getAttribute("revision");
+            push @{$lRow}, $lElement->getAttribute("operability");
+            push @{$lRows}, $lRow;
+        }
+
+        $lNeTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ qw / DN Vendor Model Serial Revision Operability / ],
+        });
+   }
+
+    #
+    # CHASSIS
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'equipmentChassis'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'equipmentChassis'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("vendor");
+            push @{$lRow}, $lElement->getAttribute("model");
+            push @{$lRow}, $lElement->getAttribute("serial");
+            push @{$lRow}, $lElement->getAttribute("revision");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRows}, $lRow;
+        }
+
+        $lChassisTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ qw / DN Vendor Model Serial Revision OperState / ],
+        });
+    }
+
+
+    #
+    # PSU
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'equipmentPsu'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'equipmentPsu'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("vendor");
+            push @{$lRow}, $lElement->getAttribute("model");
+            push @{$lRow}, $lElement->getAttribute("serial");
+            push @{$lRow}, $lElement->getAttribute("revision");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("operability");
+            push @{$lRows}, $lRow;
+        }
+
+        $lPsuTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "DN", "Vendor", "Model", "Serial", "Revision", "Oper State", "Operability" ],
+        });
+    }
+
+    #
+    # FAN MODULE
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'equipmentFanModule'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'equipmentFanModule'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("vendor");
+            push @{$lRow}, $lElement->getAttribute("model");
+            push @{$lRow}, $lElement->getAttribute("serial");
+            push @{$lRow}, $lElement->getAttribute("revision");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("operability");
+            push @{$lRows}, $lRow;
+        }
+
+        $lFanModuleTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "DN", "Vendor", "Model", "Serial", "Revision", "Oper State", "Operability" ],
+        });
+    }
+
+    #
+    # FAN 
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'equipmentFan'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'equipmentFan'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("vendor");
+            push @{$lRow}, $lElement->getAttribute("model");
+            push @{$lRow}, $lElement->getAttribute("serial");
+            push @{$lRow}, $lElement->getAttribute("revision");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("operability");
+            push @{$lRow}, $lElement->getAttribute("intType");
+            push @{$lRows}, $lRow;
+        }
+
+        $lFanTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "DN", "Vendor", "Model", "Serial", "Revision", "Oper State", "Operability", "Type" ],
+        });
+    }
+
+    #
+    # COMPUTE BLADE
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'computeBlade'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'computeBlade'}})
         {
             my $lRow = [];
             push @{$lRow}, $lElement->getAttribute("dn");
@@ -1765,19 +2423,43 @@ sub printHardwareInfo
             push @{$lRow}, $lElement->getAttribute("operPower");
             push @{$lRows}, $lRow;
         }
+    }
 
+
+    #
+    # RACK UNITS
+    #
+    if (exists $aInClassElMap->{'computeRackUnit'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'computeRackUnit'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("vendor");
+            push @{$lRow}, $lElement->getAttribute("model");
+            push @{$lRow}, $lElement->getAttribute("serial");
+            push @{$lRow}, $lElement->getAttribute("revision");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("operPower");
+            push @{$lRows}, $lRow;
+        }
+    }
+
+    if (@{$lRows} > 0)
+    {
         $lPhysTable = getHtmlTable({
             rows => $lRows,
             headings => [ qw / DN Vendor Model Serial Revision OperState  OperPower/ ],
         });
+   }
 
-
-        #
-        # COMPUTE BOARDS
-        #
-        $lRows = [];
-        $lElements = $aInSpInfo->getElementsOfClass('computeBoard');
-        foreach my $lElement (@{$lElements})
+    #
+    # COMPUTE BOARDS
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'computeBoard'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'computeBoard'}})
         {
             my $lRow = [];
             push @{$lRow}, $lElement->getAttribute("dn");
@@ -1794,14 +2476,15 @@ sub printHardwareInfo
             rows => $lRows,
             headings => [ qw / DN Vendor Model Serial Revision Thermal  Voltage/ ],
         });
+    }
 
-
-        #
-        # ADAPTER UNITS
-        #
-        $lRows = [];
-        $lElements = $aInSpInfo->getElementsOfClass('adaptorUnit');
-        foreach my $lElement (@{$lElements})
+    #
+    # ADAPTER UNITS
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'adaptorUnit'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'adaptorUnit'}})
         {
             my $lRow = [];
             push @{$lRow}, $lElement->getAttribute("dn");
@@ -1816,18 +2499,44 @@ sub printHardwareInfo
             push @{$lRows}, $lRow;
         }
 
-
         $lAdaptorUnitTable = getHtmlTable({
             rows => $lRows,
             headings => [ qw / DN Vendor Model Serial Revision Part Presence ConnPath ConnStatus / ],
         });
+    }
 
-        #
-        # MEMORY UNITS
-        #
-        $lRows = [];
-        $lElements = $aInSpInfo->getElementsOfClass('memoryUnit');
-        foreach my $lElement (@{$lElements})
+    #
+    # STORAGE CONTROLLER 
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'storageController'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'storageController'}})
+        {
+            my $lRow = [];
+            push @{$lRow}, $lElement->getAttribute("dn");
+            push @{$lRow}, $lElement->getAttribute("vendor");
+            push @{$lRow}, $lElement->getAttribute("model");
+            push @{$lRow}, $lElement->getAttribute("serial");
+            push @{$lRow}, $lElement->getAttribute("hwRevision");
+            push @{$lRow}, $lElement->getAttribute("operState");
+            push @{$lRow}, $lElement->getAttribute("operability");
+            push @{$lRows}, $lRow;
+        }
+
+        $lStorageControllerTable = getHtmlTable({
+            rows => $lRows,
+            headings => [ "DN", "Vendor", "Model", "Serial", "Revision", "Oper State", "Operability" ],
+        });
+    }
+
+    #
+    # MEMORY UNITS
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'memoryUnit'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'memoryUnit'}})
         {
             my $lRow = [];
             push @{$lRow}, $lElement->getAttribute("dn");
@@ -1846,14 +2555,16 @@ sub printHardwareInfo
             rows => $lRows,
             headings => [ qw / DN Vendor Model Serial Revision Presence Location Capacity Clock / ],
         });
+    }
 
 
-        #
-        # PROCESSOR UNITS
-        #
-        $lRows = [];
-        $lElements = $aInSpInfo->getElementsOfClass('processorUnit');
-        foreach my $lElement (@{$lElements})
+    #
+    # PROCESSOR UNITS
+    #
+    $lRows = [];
+    if (exists $aInClassElMap->{'processorUnit'})
+    {
+        foreach my $lElement (@{$aInClassElMap->{'processorUnit'}})
         {
             my $lRow = [];
             push @{$lRow}, $lElement->getAttribute("dn");
@@ -1874,42 +2585,112 @@ sub printHardwareInfo
             rows => $lRows,
             headings => [ "DN", "Vendor", "Model", "Serial", "Revision", "Presence", "Cores", "Speed", "Stepping", "Socket Designation", "Cores Enabled" ],
         });
-
     }
+
 
     print $aInFh "\n\n";
     print $aInFh qq%<div class="tab-content">%;
     print $aInFh "\n\n";
 
-    print $aInFh qq%<H4> Compute </H4>%;
-    print $aInFh "\n";
-    print $aInFh $lPhysTable;
-    print $aInFh "</br>";
-    print $aInFh "\n\n";
+    if (length($lNeTable) > 0)
+    {
+        print $aInFh qq%<H4> Network Elements</H4>%;
+        print $aInFh "\n";
+        print $aInFh $lNeTable; 
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
 
-    print $aInFh qq%<H4> Compute Boards </H4>%;
-    print $aInFh "\n";
-    print $aInFh $lComputeBoardTable;
-    print $aInFh "</br>";
-    print $aInFh "\n\n";
+    if (length($lChassisTable) > 0)
+    {
+        print $aInFh qq%<H4> Chasssis </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lChassisTable; 
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
 
-    print $aInFh qq%<H4> Processor Units </H4>%;
-    print $aInFh "\n";
-    print $aInFh $lProcessorUnitTable;
-    print $aInFh "</br>";
-    print $aInFh "\n\n";
+    if (length($lPhysTable) > 0)
+    {
+        print $aInFh qq%<H4> Compute </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lPhysTable; 
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
 
-    print $aInFh qq%<H4> Memory Units </H4>%;
-    print $aInFh "\n";
-    print $aInFh $lMemoryUnitTable;
-    print $aInFh "</br>";
-    print $aInFh "\n\n";
+    if (length($lComputeBoardTable) > 0)
+    {
+        print $aInFh qq%<H4> Compute Boards </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lComputeBoardTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
 
-    print $aInFh qq%<H4> Adaptor Units </H4>%;
-    print $aInFh "\n";
-    print $aInFh $lAdaptorUnitTable;
-    print $aInFh "</br>";
-    print $aInFh "\n\n";
+    if (length($lProcessorUnitTable) > 0)
+    {
+        print $aInFh qq%<H4> Processor Units </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lProcessorUnitTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
+    if (length($lMemoryUnitTable) > 0)
+    {
+        print $aInFh qq%<H4> Memory Units </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lMemoryUnitTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
+    if (length($lAdaptorUnitTable) > 0)
+    {
+        print $aInFh qq%<H4> Adaptor Units </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lAdaptorUnitTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
+    if (length($lStorageControllerTable) > 0)
+    {
+        print $aInFh qq%<H4> Storage Controllers</H4>%;
+        print $aInFh "\n";
+        print $aInFh $lStorageControllerTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
+    if (length($lPsuTable) > 0)
+    {
+        print $aInFh qq%<H4> Power Supply Units </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lPsuTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
+    if (length($lFanModuleTable) > 0)
+    {
+        print $aInFh qq%<H4> Fan Modules </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lFanModuleTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
+    if (length($lFanTable ) > 0)
+    {
+        print $aInFh qq%<H4> Fans </H4>%;
+        print $aInFh "\n";
+        print $aInFh $lFanTable;
+        print $aInFh "</br>";
+        print $aInFh "\n\n";
+    }
+
     print $aInFh qq%</div>%;
     print $aInFh "\n\n";
 }
@@ -1932,16 +2713,18 @@ sub printOverviewInfo
     }
     my $aInFh = $aInRefArgs->{'fhandle'};
 
-    my $lElements = $aInSpInfo->getElementsOfClass('lsServer');
-    my $lElement = $lElements->[0];
+    if (!exists($aInRefArgs->{'classElMap'}))
+    {
+        confess "Missing mandator argument: classElMap";
+    }
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
-    # TODO: MAKE THIS MY SUMMARY INFORMATION ON THE APPLICATION'S PROGRESS
+    # my $lElements = $aInSpInfo->getElementsOfClass('lsServer');
+    #my $lElement = $lElements->[0];
 
     my $lRows = [];
 
     my $lRow = [];
-
-    $lRow = [];
     push @{$lRow}, "DN";
     push @{$lRow}, $aInSpInfo->dn();
     push @{$lRows}, $lRow; 
@@ -1999,11 +2782,11 @@ sub printFaultInfo
 {
     my ($aInRefArgs) = @_;
 
-    if (!exists($aInRefArgs->{'spInfo'}))
+    if (!exists($aInRefArgs->{'classElMap'}))
     {
-        confess "Missing mandator argument: spInfo";
+        confess "Missing mandator argument: classElMap";
     }
-    my $aInSpInfo = $aInRefArgs->{'spInfo'};
+    my $aInClassElMap = $aInRefArgs->{'classElMap'};
 
     if (!exists($aInRefArgs->{'fhandle'}))
     {
@@ -2012,7 +2795,7 @@ sub printFaultInfo
     my $aInFh = $aInRefArgs->{'fhandle'};
 
     my $lAllFaults = [];
-    foreach my $lFault (@{$aInSpInfo->faults()})
+    foreach my $lFault (@{$aInClassElMap->{'faultInst'}})
     {
         my $lRow = [];
         my $lCode = $lFault->getAttribute("code");
@@ -2050,12 +2833,6 @@ sub printFaultInfo
 sub printTopologyInfo
 {
     my ($aInRefArgs) = @_;
-
-    if (!exists($aInRefArgs->{'spInfo'}))
-    {
-        confess "Missing mandator argument: spInfo";
-    }
-    my $aInSpInfo = $aInRefArgs->{'spInfo'};
 
     if (!exists($aInRefArgs->{'fhandle'}))
     {
@@ -2126,32 +2903,16 @@ sub getHtmlTable
             confess "Number of columns not equal to number of headings";
         }
 
-        my $lClass="spec";
-        my $lTdClass = "";
-        if ($lRowNum %2)
-        {
-            $lClass="specalt";
-            $lTdClass= qq%class="alt"%;
-        }
-
         $lTable .= UcsSimple::Util::getIndent($aInIndent+2) . '<tr>' . "\n";
         for my $lCol (0..(@{$lRow} -1))
         {
-            if (!$lCol)
-            {
-                # First column is heading for row
-	        $lTable .= UcsSimple::Util::getIndent($aInIndent+2) . qq%<th scope="row" class="$lClass"> $lRow->[$lCol] </th>% . "\n";
-            }
-            else
-            {
-	        $lTable .=  UcsSimple::Util::getIndent($aInIndent+2) . qq%<td $lTdClass> $lRow->[$lCol] </td>% . "\n";
-	        # print UcsSimple::Util::getIndent($aInIndent+2) . qq%<td $lTdClass> $lRow->[$lCol] </td>% . "\n";
+	        $lTable .=  UcsSimple::Util::getIndent($aInIndent+2) . qq%<td> $lRow->[$lCol] </td>% . "\n";
+	        # print UcsSimple::Util::getIndent($aInIndent+2) . qq%<td> $lRow->[$lCol] </td>% . "\n";
 	        if ((!(exists $lRow->[$lCol])) || (!defined($lRow->[$lCol])))
                 {
-                    confess "SCREWED UP!";
+                    confess "Fix me!";
                     exit 1;
                 }
-            }
         }
         $lTable .= UcsSimple::Util::getIndent($aInIndent+1) . '</tr>' . "\n";
         $lRowNum++;
@@ -2241,22 +3002,6 @@ sub loadConfig
     $lAppCfg->userName($lUname);
     $lAppCfg->password($lPasswd);
 
-    my $lSpDns = $lConfig->{'APP'}->{'SP_DN'};
-
-    if (!defined($lSpDns))
-    {
-        die "Missing service profile dns"; 
-    } 
-
-    if (ref $lSpDns eq "ARRAY")
-    {
-        $lAppCfg->spDns($lSpDns);
-    }
-    else
-    {
-        $lAppCfg->spDns([$lSpDns]);
-    } 
-
     return $lAppCfg;
 }
 
@@ -2316,12 +3061,12 @@ sub loadConfig
 
     sub spClassElements
     {
-        my ($self, $aInClassElementMap) = @_;
+        my ($self, $aInClassElMap) = @_;
         ref ($self) or confess "Instance required";
 
-        if (defined($aInClassElementMap))
+        if (defined($aInClassElMap))
         {
-            $self->{'spClassElements'} = $aInClassElementMap;
+            $self->{'spClassElements'} = $aInClassElMap;
             $self->updateElements(); 
         }
         return $self->{'spClassElements'};
@@ -2330,12 +3075,12 @@ sub loadConfig
 
     sub physClassElements
     {
-        my ($self, $aInClassElementMap) = @_;
+        my ($self, $aInClassElMap) = @_;
         ref ($self) or confess "Instance required";
 
-        if (defined($aInClassElementMap))
+        if (defined($aInClassElMap))
         {
-            $self->{'physClassElements'} = $aInClassElementMap;
+            $self->{'physClassElements'} = $aInClassElMap;
             $self->updateElements(); 
         }
         return $self->{'physClassElements'};
@@ -2350,14 +3095,14 @@ sub loadConfig
 
     sub faultCount
     {
-        my ($self, $aInClassElementMap) = @_;
+        my ($self, $aInClassElMap) = @_;
         ref ($self) or confess "Instance required";
         return $self->{'faultCount'};
     }
 
     sub allClassElements
     {
-        my ($self, $aInClassElementMap) = @_;
+        my ($self, $aInClassElMap) = @_;
         ref ($self) or confess "Instance required";
         return $self->{'allClassElements'};
     }
@@ -2378,7 +3123,7 @@ sub loadConfig
 
     sub updateElements 
     {
-        my ($self, $aInClassElementMap) = @_;
+        my ($self, $aInClassElMap) = @_;
         ref ($self) or confess "Instance required";
 
         my $lAllClassElementMap = {};
@@ -2432,7 +3177,7 @@ sub loadConfig
 sub usage
 {
     print "For usage information:\n";
-    print "\n\tperldoc sp-backup-report\n\n";
+    print "\n\tperldoc ucs-backup-report\n\n";
     exit;
 }
 
@@ -2441,16 +3186,16 @@ __END__
 
 =head1 NAME
 
-sp-backup-report - produce a report detailing service profile configuration from a UCS domain backop.
+ucs-backup-report - produce a report detailing service profile configuration from a UCS domain backop.
                    This report may be useful for disaster recovery scenario's as it contains configuration
                    and operational data on the service profiles.
 
 
 =head1 USAGE
 
-sp-backup [options]
+ucs-backup-report [options]
 
-    sp-backup --cfg=./cfg/demo.conf --xml=ucs-backup.xml
+    ucs-backup-report --cfg=./cfg/demo.conf --xml=ucs-backup.xml
 
 =head1 CONFIGURATION FILE CONTENTS
 
@@ -2463,6 +3208,7 @@ sp-backup [options]
 
     LOG4PERL = /home/ikent/demo/cfg/log.cfg
 
+    BACKUP_HOME = /home/ikent/backup
 
 d1 SEE ALSO
 
