@@ -896,6 +896,16 @@ sub getConfigConfMo
         # Assume we are passed the raw xml
         my $lDn = $aInDoc->getAttribute("dn");
         my $lNewNode = $aInDoc->cloneNode(1);
+
+        # Remove non-configurable classes and attributes
+        # Pass in elements to delete and elements/attributes to keep;
+        pruneDomTree ({
+            node => $lNewNode,
+            delClassMap => $aInClassMeta->getNonConfigClasses(),
+            keepAttrMap => $aInClassMeta->getConfigAttrs(),
+            delUnknown => 1
+        });
+
         $lTargetInConfigs->addChild($lNewNode);
 
         my $lDnAttr = $lConfMoDoc->createAttribute("dn", $lDn);
