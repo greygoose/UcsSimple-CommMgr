@@ -251,19 +251,22 @@ sub getElementsOfClass
         $lResultArray = $aInRefArgs->{'resultArray'};
     }
 
+    my $lClass = $aInNode->localname;
+    if (($aInNode->nodeType() == ELEMENT_NODE) &&
+        ($lClass eq $aInClass))
+    {
+        push @{$lResultArray}, $aInNode;
+    }
+
     my @lChildren =  $aInNode->getChildNodes;
     for my $lChild (@lChildren)
     {
-        my $lClass = $aInNode->localname;
-        if ($lClass eq $aInClass)
-        {
-            push @{$lResultArray}, $lChild;
-        }
         if ($aInHier)
         {
             getElementsOfClass({node => $lChild, class => $aInClass, hier => $aInHier, resultArray => $lResultArray});
         }
     }
+
     return $lResultArray;
 }
 

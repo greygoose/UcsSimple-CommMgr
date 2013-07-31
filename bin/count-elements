@@ -24,6 +24,9 @@ my $options_okay = GetOptions (
 
 usage() if !$options_okay;
 
+
+
+
 # Grab xml from file or stdin
 my $lXmlParser = XML::LibXML->new();
 my $lXmlDoc;
@@ -37,6 +40,7 @@ else
     $lXmlDoc = $lXmlParser->parse_file($lXmlFile);
 }
 
+UcsSimple::DomUtil::populateDn($lXmlDoc, 1);
 UcsSimple::DomUtil::visit($lXmlDoc, \&countCb);
 
 # Print out the results

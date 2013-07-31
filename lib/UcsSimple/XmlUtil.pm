@@ -11,7 +11,7 @@ use vars qw($VERSION @EXPORT @EXPORT_OK @ISA);
 $VERSION = "0.0001";
 
 use Carp qw(croak confess cluck);
-use XML::Simple;
+use XML::LibXML;
 use XML::Parser::PerlSAX;
 use XML::Handler::YAWriter;
 use UcsSimple::Util;
@@ -173,7 +173,7 @@ sub printResponse
 
 sub checkUcsResponse
 {
-    my ($lResp) = @_;
+    my ($lRespRef) = @_;
 
     # We look at the response for error information;
     # Check if valid xml is returned and it is a response;
@@ -193,33 +193,35 @@ sub checkUcsResponse
     my $lErrorHashRef = {};
 
     eval {
-            my $lParser = XML::Simple->new();
-            my $lConfig = $lParser->XMLin($lResp);
+        my $lXmlParser = XML::LibXML->new();
+        my $lXmlDoc = $lXmlParser->parse_string($$lRespRef);
+        my $lConfig = $lXmlDoc->documentElement();
+        # print "checking: " . $lConfig->toString(2) . "\n";
 
             # XML Sanity check - make sure it has response="yes"
-            my $lIsResp = $lConfig->{'response'};
-            if (defined($lIsResp) and ($lIsResp eq "yes"))
+            if ($lConfig->hasAttribute("response") &&
+               ($lConfig->getAttribute("response") eq "yes"))
             {
                 $lValidXmlResp = "true";
             }
-            # Grab any xml error information
-            if ($lValidXmlResp)
+
+            if ($lConfig->hasAttribute("errorDescr"))
             {
-                if (exists($lConfig->{'errorDescr'}))
-                {
-                    $lErrorHashRef->{'errorDescr'} = $lConfig->{'errorDescr'};
-                    $lUcsError = "true";
-                }
-                if (exists($lConfig->{'errorCode'}))
-                {
-                    $lErrorHashRef->{'errorCode'} = $lConfig->{'errorCode'};
-                    $lUcsError = "true";
-                }
-                if (exists($lConfig->{'invocationResult'}))
-                {
-                    $lErrorHashRef->{'invocationResult'} = $lConfig->{'invocationResult'};
-                    $lUcsError = "true";
-                }
+                my $lErrorDescr = lConfig->getAttribute("errorDescr");
+                $lErrorHashRef->{'errorDescr'} = $lErrorDescr;
+                $lUcsError = "true";
+            }
+            if ($lConfig->hasAttribute("errorCode"))
+            {
+                my $lErrorCode = lConfig->getAttribute("errorCode");
+                $lErrorHashRef->{'errorCode'} = $lErrorCode;
+                $lUcsError = "true";
+            }
+            if ($lConfig->hasAttribute("errorDescr"))
+            {
+                my $lInvResult = lConfig->getAttribute("invocationResult");
+                $lErrorHashRef->{'invocationResult'} = $lInvResult;
+                $lUcsError = "true";
             }
     };
     my $lSuccess = $lValidXmlResp and undef($lUcsError);
@@ -899,7 +901,7 @@ and the response field.  It returns an array with the result and a hash ref to e
 
     my $lResp = "xml from post to ucs";
     ($lUcsRespValid, $lErrHashRef) =
-        UcsSimple::XmlUtil::checkUcsResponse($lResp);
+        UcsSimple::XmlUtil::checkUcsResponse(\$lResp);
      if ($lUcsRespValid)
      {
         ...

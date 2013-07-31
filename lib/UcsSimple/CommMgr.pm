@@ -15,6 +15,7 @@ use XML::Simple;
 use XML::Handler::YAWriter;
 use Log::Log4perl qw (get_logger);
 use Mozilla::CA qw(SSL_ca_file SSL_ca_path);
+use Perl6::Slurp;
 
 use UcsSimple::DomUtil;
 use UcsSimple::XmlUtil;
@@ -42,8 +43,16 @@ sub new
         confess "You must provide ssl opts (you can pass no_verify for no certificate validation)";
     }
 
+    my $lCbFile = undef;
+    if (exists($aInRefArgs->{'cb_file'}))
+    {
+        $lCbFile =  $aInRefArgs->{'cb_file'};
+    }
+    $self->cbFile($lCbFile);
+
     # Simple processing of ssl options
     my $lSslOptsRef = $aInRefArgs->{'ssl_opts'};
+
 
     if (exists($lSslOptsRef->{'no_verify'})  && 
        ($lSslOptsRef->{'no_verify'}))
@@ -89,6 +98,22 @@ sub session
         $self->{'session'} = $aInSession;
     }
     return $self->{'session'}
+}
+
+
+
+# All call-back file will be used to store responses
+# Since LWP::UserAgent can struggle with large post responses.
+sub cbFile
+{
+    my ($self, $aInCbFile) = @_;
+    ref($self) or confess "Instance required";
+
+    if (@_ == 2)
+    {
+        $self->{'cbFile'} = $aInCbFile;
+    }
+    return $self->{'cbFile'}
 }
 
 
@@ -379,7 +404,7 @@ sub doPostXML
 {
     my ($self, $aInRefArgs) = @_;
     ref($self) or confess "Instance required";
-   
+
     if (!exists($aInRefArgs->{'postData'})) 
     {
         confess "No data to post";
@@ -403,30 +428,41 @@ sub doPostXML
     my $lNoPass = $lRequest->as_string();
     $lNoPass =~ s/inPassword\s*=\s*\"(.*?)\"/inPassword=""/gi; 
 
-    get_logger(__PACKAGE__)->debug(
-        "Request : \n" .
-        $lNoPass);
+    get_logger(__PACKAGE__)->debug( "Request : \n" .  $lNoPass);
 
-    # HTTP:: Our response object
-    my $lResp = $self->userAgent->request($lRequest);
+    my $lRespContent = "";
+
+    my $lResp = undef;
     my $lUcsRespValid = undef;
     my $lErrHashRef = undef;
+
+    my $lCbFile = $self->cbFile();
+    if (defined($lCbFile))
+    {
+        get_logger(__PACKAGE__)->debug( "Using file to speed up request posting" );
+        $lResp = $self->userAgent->request($lRequest, $lCbFile);
+        $lRespContent = slurp($lCbFile);
+    }
+    else
+    {
+        get_logger(__PACKAGE__)->debug( "Posting request" );
+        $lResp = $self->userAgent->request($lRequest, $lCbFile);
+        $lRespContent = $lResp->content();
+    }
+
+    get_logger(__PACKAGE__)->debug( "Got a response : " );
 
     if ($lResp->is_success)
     {
         ($lUcsRespValid, $lErrHashRef) = 
-            UcsSimple::XmlUtil::checkUcsResponse($lResp->content);
+            UcsSimple::XmlUtil::checkUcsResponse(\$lRespContent);
     }
 
-    get_logger(__PACKAGE__)->trace(
-        "Response Headers: \n" . 
-         Dumper($lResp->headers()));
+    get_logger(__PACKAGE__)->debug("Done checking response: \n");
 
-    get_logger(__PACKAGE__)->debug(
-         "Response : \n" . 
-         $lResp->content());
+    get_logger(__PACKAGE__)->trace("Response Headers: \n" .  Dumper($lResp->headers()));
 
-    return ($lUcsRespValid, $lResp->content, $lErrHashRef, $lResp->status_line) if wantarray;
+    return ($lUcsRespValid, $lRespContent, $lErrHashRef, $lResp->status_line) if wantarray;
 
     if (defined($lUcsRespValid))
     {

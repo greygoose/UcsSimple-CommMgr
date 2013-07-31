@@ -11,6 +11,8 @@ use Log::Log4perl qw (get_logger);
 use UcsSimple::Session;
 use UcsSimple::CommMgr;
 use UcsSimple::XmlUtil;
+use Data::Dumper;
+use DateTime;
 
 # Signal handler (assure 1 logout per login)
 $SIG{'INT'} = \&sigIntHandler;
@@ -19,13 +21,13 @@ my $lCommMgr = undef;
 my $lUname = "admin";
 my $lUri = undef;
 my $lPasswd = undef;
-my $lPretty= undef;
-my $lBriefBytes = undef;
-my $lHier= undef;
 my $lDn= "";
 my $lLogCfgFile = undef;
 my $lCfgFile = undef;
 my $lRetCode = 1;
+my $lBackupHome = undef;
+my $lMaxBackups = undef;
+
 
 # Specify the command line options and process the command line
 my $options_okay = GetOptions (
@@ -35,11 +37,8 @@ my $options_okay = GetOptions (
 	'passwd=s'      => \$lPasswd,       # Password.
 	'log4perl=s'    => \$lLogCfgFile,   # log4perl configuration file
 	'cfg=s'         => \$lCfgFile,      # a cfg file with application settings.
-        'dn=s'          => \$lDn,           # DN
-        'hier'          => \$lHier,         # Hierarchical
-
-	'pretty'	=> \$lPretty,  	    # Pretty print response.
-	'brief=s'	=> \$lBriefBytes,   # Brief - only part of response
+        'backupHome'    => \$lBackupHome,   # Backup directory
+        'maxBackups'    => \$lMaxBackups,   # Maximum backup files
 
 	# Standard meta-options
 	'usage'		=> sub { usage(); },
@@ -52,14 +51,15 @@ if (defined($lCfgFile))
     read_config $lCfgFile => my %lConfig;
 
     # Command line arguments take precendence.
-    # Next, we read from a configuration file.
     $lUri = $lConfig{'UCS'}{'URI'} if (!$lUri);
     $lUname = $lConfig{'UCS'}{'UNAME'} if (!$lUname);
     $lPasswd = $lConfig{'UCS'}{'PASSWORD'} if (!$lPasswd);
     $lLogCfgFile = $lConfig{'APP'}{'LOG4PERL'} if (!$lLogCfgFile);
+    $lBackupHome = $lConfig{'APP'}{'BACKUP_HOME'} if (!$lBackupHome);
+    $lMaxBackups = $lConfig{'APP'}{'MAX_BACKUP_FILES'} if (!$lMaxBackups);
 }
 
-usage() if ((!$lUname) || (!$lPasswd) || (!$lUri)  || (!defined($lDn)));
+usage() if ((!$lUname) || (!$lPasswd) || (!$lUri) || (!$lBackupHome) || ((!defined($lMaxBackups)) || ($lMaxBackups < 1)));
 
 initLogging($lLogCfgFile);
 
@@ -74,16 +74,22 @@ my $lCookie = $lCommMgr->doLogin();
 croak "Failed to get cookie" if (!defined $lCookie);
 
 my ($lSuccess, $lXmlResp, $lErrHashRef) = 
-    $lCommMgr->resolveDn({ dn => $lDn, hier => $lHier });
+    $lCommMgr->resolveDn({ dn => $lDn, hier => 1 });
 
-my $lStream = $lSuccess ? *STDOUT : *STDERR;
-UcsSimple::XmlUtil::printResponse(
+# Output the command to a log file
+if ($lSuccess)
 {
-    success => $lSuccess, xmlDoc => \$lXmlResp,
-    maxLength => (defined($lBriefBytes) ? $lBriefBytes : undef),
-    pretty => $lPretty, stream => $lStream, errorHash => $lErrHashRef, 
-});
+    my $lPrefix = 'ucs-backup-';
+    cleanup({ dir => $lBackupHome, prefix => $lPrefix, maxFiles => $lMaxBackups });
 
+    my $lDt = DateTime->now();
+    my $lDtString = $lDt->strftime("%F-%H_%M_%S");
+    my $lBackupFilename = $lPrefix . $lDtString . '.xml';
+    my $lQualBackupFile = File::Spec->catfile( $lBackupHome, $lBackupFilename);
+    open my $lFh, '>', $lQualBackupFile or die "Cannot open file $lQualBackupFile $!";
+    print $lFh $lXmlResp; 
+    close $lFh;
+}
 
 $lCommMgr->doLogout();
 
@@ -92,11 +98,71 @@ exit $lRetCode;
 
 
 
+
+# Remove old log files beyond a max
+# cleanup({ dir => /home/joe/backup, prefix ="ucs-backup", maxFiles => 5 });
+sub cleanup
+{
+    my ($aInRefArgs) = @_; 
+
+    if (!exists($aInRefArgs->{'dir'}))
+    {
+        confess "Missing mandatory argument: dir";
+    }  
+    my $lDir = $aInRefArgs->{'dir'};
+
+    if (!exists($aInRefArgs->{'prefix'}))
+    {
+        confess "Missing mandatory argument: prefix";
+    }  
+    my $lPrefix = $aInRefArgs->{'prefix'};
+
+    my $lSuffix = '.xml';
+    if (!exists($aInRefArgs->{'maxFiles'}))
+    {
+        confess "Missing mandatory argument: maxFiles";
+    }  
+    my $lMaxFiles = $aInRefArgs->{'maxFiles'};
+
+    my $lGlob = File::Spec->catfile( $lDir, $lPrefix) . '*' . $lSuffix;
+
+    my @lCurrentFiles = glob($lGlob);
+    # Check if we need to delete a file
+    if (@lCurrentFiles >= $lMaxFiles)
+    {
+        # Create a map indexed by a DateTime object for sorting.
+        my $lTimeFileMap = {};
+        foreach my $lFilename (@lCurrentFiles)
+        {
+            my $lDtString = $lFilename;
+            my ($lYear, $lMonth, $lDay, $lHour, $lMin, $lSec) = 
+                ($lDtString =~ m/(\d{4})-(\d{2})-(\d{2})-(\d{2})_(\d{2})_(\d{2})/);
+            my $lDt = DateTime->new( year => $lYear, month => $lMonth, day => $lDay, 
+                hour => $lHour, minute => $lMin, second => $lSec);
+            $lTimeFileMap->{$lDt} = $lFilename;
+        }
+
+        my $lCount = 0;
+        foreach my $lDt (reverse sort keys %{$lTimeFileMap})
+        {
+            $lCount++; 
+            if ($lCount >= $lMaxFiles)
+            {
+                my $lFilename =  $lTimeFileMap->{$lDt};
+                #print "Deleting: " . $lCount . ")" . $lFilename . "\n";
+                unlink $lFilename or die "Could not delete file : $lFilename";
+            }
+        }
+    }
+}
+
+
+
 # Print usage message.
 sub usage 
 {
     print "For usage information:\n";
-    print "\n\tperldoc resolve-dn\n\n";
+    print "\n\tperldoc ucs-backup-mit\n\n";
     exit;
 }
 
@@ -139,28 +205,29 @@ sub sigIntHandler
     print "Caught signal - will cleanup and exit \n";
     $lCommMgr->doLogout();
 
-    get_logger(__PACKAGE__)->warn(
-         "Terminated by signal");
+    get_logger(__PACKAGE__)->warn("Terminated by signal");
 
     print "Terminated by signal\n";
     exit 1;
 }
+
 
 __END__
 
 
 =head1 NAME
 
-resolve-dn - a simple script calls a UCS system and runs a configResolveDn query.
+ucs-backup-mit - a simple script that grabs MIT and stores it in a file as a backup artifact.
+                 It rotates the backup files to limit the number of backups stored in the backup directory.
 
 
 =head1 USAGE
 
-resolve-dn [options]
+ucs-backup-mit [options]
 
-    resolve-dn --uname=admin --passwd=pass --dn=org-root/ls-VmScale --uri=https://ucs-vip-ip/nuova --pretty 
+    ucs-backup-mit --uname=admin --passwd=pass --uri=https://ucs-vip-ip/nuova --backupHome=/home/joe/ucs-backup/ --maxBackups=7
 
-    resolve-dn --cfg=./config/demo.conf --dn=org-root --hier --pretty
+    ucs-backup-mit --cfg=./config/demo.conf 
 
 
 =head1 REQUIRED ARGUMENTS
@@ -168,6 +235,8 @@ resolve-dn [options]
     --uri=<ucs-vip>           The UCS VIP uri.
     --uname=<ucs-user>        The UCS user name.
     --passwd=<ucs-pass>       The UCS password.
+    --backupHome=<directory>  The directory to store the backups in.
+    --maxBackups=<num>        The maximum number of backups.
 
 
 UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
@@ -178,9 +247,7 @@ UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
     --hier                    Return hierarchy of found managed objects. 
     --cfg=<config-file>       Specify a configuration file. 
     --log4perl=<cfg-file>     The log4perl config file.
-    --pretty                  Pretty print the UCS response.
     --usage                   Print a usage message.
-    --brief=<num-bytes>       Limit server response printing to num-bytes.
 
 
 =head1 CONFIGURATION FILE
@@ -195,8 +262,9 @@ Example configuration file:
     PASSWORD = Nbv12345
 
     [APP]
-    LOG4PERL = ./config/log.conf
-
+    LOG4PERL = /home/ikent/demo/cfg/log.cfg
+    BACKUP_HOME = /home/ikent/backup
+    MAX_BACKUP_FILES = 7
 
 =head1 SEE ALSO
 
@@ -213,7 +281,7 @@ Ike Kent, C<< <ikent at cisco.com> >>
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc resolve-dn
+    perldoc ucs-backup-mit
 
 You can also look for information at:
 
