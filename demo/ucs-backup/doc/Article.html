@@ -1,4 +1,5 @@
 <html>
+
     <head>
         <title> A UCS Backup Strategy </title>
     </head>
@@ -7,13 +8,11 @@
 
 A single UCS domain may consist of up to 160 servers as well as unified network and storage infrastrastructure.   
 This infrastructure represents a significant investment and is the foundation for delivering applications
-and services at scale.  UCS provides a robust and resilient system that can tolerate various types of failures.  
-Pragamtism dictates that customers engage in a "robust" (wc) backup strategy.
-
-Best practices dictate that administrators should backup their UCS domains at regular intervals.
-
-UCS supports either scheduled or operator initiated backups.  The UCS administrator can choose
-from the following types of backups:
+and services at scale.  Due to this scale and the significance of its role in the data center,  
+UCS should be deployed in conjunction with a backup strategy.  The backup strategy should capture the UCS
+system state and configuration at regular intervals.  For this purpose, UCS provides several different
+types of backups that administrators can initiate or schedule at regular intervals.
+There various types of backups are described below:
 
 <ul>
 
@@ -30,16 +29,16 @@ This file that can be imported to the original (or other) fabric interconnect.
 
 </ul>
 
-Best practices dictate that (atleast) a Full State and All Configuration backup be done at regular 
-intervals.  Following this approach will provide the necessary artifacts for most failure
-scenarios, however, there are some short-comings to this approach.
-The Full State backup contains complete system information in binary format. 
-This precludes it from being browsed or edited and it can only be applied in an "all or nothing" 
-approach to recover a UCS system.  The operator does not have the ability to browse the systems 
-state at the time the backup was applied. 
-
-The other backup types capture configuration data in xml format that can be imported into UCS Manager in a recovery scenario.  
-Since the xml files are limited to configuration data, the following information is not accessible: 
+Best practices dictate that Full State and All Configuration backups be performed at regular 
+intervals.  This approach will provide access to the necessary artifacts to recover from almost any 
+failure scenario.  There are several short-comings with this approach.  Although we have the 
+necessary artifacts for recovery, they may not be in the optimal format for consumption. 
+For example, the Full State backup contains complete system information, but,
+that information is in binary format.  This means an operator cannot browse or edit the contained data.
+The Full State backup can only be applied in an "all or nothing" approach to recover a UCS system.
+The other backup types (All Configuration, Logical Configuration and System Configuration) 
+capture configuration data in xml format that can be imported into UCS Manager in a recovery scenario.
+Although these files are limited to configuration data, the following information is not accessible: 
 
 <ul>
 <li> State information like faults, statistics and configuration errors.  
@@ -49,110 +48,73 @@ profile's vNICS.
 <li> Hardware and firmware inventory.  
 </ul>
 
-This information would be useful for many disaster recovery scenarios.  
-Differences in firmware or hardware
-versions may be the source of inconsistencies or errors in the recovered system.   This information
-would be beneficial.  Ideally, the entire UCS systems state would be accessible in a recovery 
-scenario.
+<p>
 
-   
+This information would be useful for disaster recovery scenarios.  For example, during 
+system recovery, operators should be able to quickly determine the 
+hardware and firmware versions of all components in their domain.  They could use this 
+information to identify differences between the original and recovered system since such
+differences may be the source of inconsistent.
+Similarly, operators would like to be able to view the backed up system's policies 
+in conjunction with its state information.  This will allow the operator to check if
+a fault on the recovered system existed on the backed up system.  Ideally, this information
+would be accessible in a well organized and graphical format since backups are often
+several megabytes in size and contain configuration data spanning the storage, networking 
+and compute domains.  
 
-The UCS backup XML files provide configuration data that can be imported into UCS to recover a system.
-These files are often several megabytes in size and are not easily consumeable by an administrator.
+</p>
+The above short-comings can be addressed by leveraging the UCS XML API to extract the pertinent
+information.  This information can then be organized in a manner that is optimized for disaster 
+recovery scenarios.  This can be accomplished through the use of two simple XML scripts, described below:
 
-An indexed and browseable
-form
+<ol>
+<li> ucs-backup-mit - queries the entire MIT and stores it as a backup xml file;  The file can subseqently be 
+processed off-line.
+<li> ucs-backup-report - produces a report from the backup xml file produced by ucs-backup-mit.  
+</ol>
 
-<li> Indexed or browseable configuration and operational data.  Having comprehensive system information 
-is necessary for recovery, however, this information must be easily consumable by the administrator 
-attempting to recover the system.   Since backup files are typically several Megabytes in size, recoverying 
-a deleted policy can be unnecessarily onerous.  It would be nice to be able to browse the UCS backup
-in a user friendly manner.  
+These two scripts are available for download as part of a perl UcsSimple-CommMgr package. 
+<a> href="https://github.com/greygoose/UcsSimple-CommMgr" </a>
 
-</ul>
+<pre>
+<code>
+    ucs-backup-mit --cfg=./cfg/backup.cfg 
 
-The above short-comings can be addressed by leveraging the UCS XML API in order to extract the pertinent
-information and format it in a manner that is optimized for disaster recovery scenarios.   
-The UCS XML API allows us to issue a single query command to get a snap-shot of the entire MIT. We can 
-then mine this data off-line in order to produce easily browse-able system configuration information.
+    ucs-backup-report backup/ucs-backup-2013-07-30-22_36_43.xml
+</code>
+</pre>
 
-
-I have written a number of simple scripts that demonstrate this technique and can be added to your 
-existing backup regiment.  The first operation is to query the UCS Management Information Tree.  
-Here are the commands that I issue:
-
-<CODE>
-
-
-</CODE>
-
-You can see that the xml file is approximately 108M in size and has over 260,000 managed objects (or xml elements).
-We have complete system information and we no longer have to interact with our production network.  
-We can write and use data mining scripts at our leisure to extract whatever recovery information we need 
-in the format we want.   I have written a script called "ucs-backup-report" to mine some of this information.
-
-
-Let's investigate some of the views of information that it provides:
-
-System Information:
+I installed these scripts and ran them on a scaled out UCS system. The backup of the entire MIT 
+was 108M in size and contained 260,000 xml elements (which are UCS managed objects). 
+The ucs-backup-report scripts mines the backup and generates a web pages report of the UCS system.
+It presents data on the following system level information:
 
 <ul>
-<li> Hardware inventory for each component of the UCS system;
-<li> Firmware inventory for UCS managed firmware;
-<li> Fault report with the complete list of UCS faults including their severity;
-<li> Links to configuration data on the various service profiles;
+<li> Hardware inventory for each UCS component;
+<li> The installed firmware version for each UCS component;
+<li> A fault report with the complete list of UCS faults including their severity;
 <li> Navigation links to view the xml content to configure many UCS policies;
-<li> Some LAN and SAN configuration information;
+<li> LAN and SAN configuration information;
+<li> UCS identity report - mac, wwn, wwpn, uuid, iqn;
 </ul>
 
 For each service profile, there is the following information:
 
 <ul>
-<li> 
-<li> 
-<li> 
+<li> All policies referenced from there service profile;
+<li> Hardware and firmware information if the service profile is associated with hardware;
+<li> LAN and SAN configuration;
+<li> Identities used by the service profile;
 </ul>
 
-
-This provides just one view into the data.  You can augment or update the views as you wish even for 
-MIT snap-shots that you took in the past (since we have the MIT saved!).
-
-
-
-
-
-there are a wide variety of tools we can use to slice and dice the data to create the reports
-or views we wish to view the data.
-
-I developed a simple perl script to extract and present the MIT data for a UCS domain.
-It provides the following:
-
-For the UCS domain:
-- firmware and hardware inventory 
-- faults
-- service profiles
-- identity report
-
-
-For each service profile:
-- a view to see the configuration of each service profile in the domain;
-- firmware and hardware inventory 
-- the xml configuration for each service profile  as well as each policy it references;
-  These could be used to configure a UCSM system.
-
-This provides just one view into the data.  You can download and customize the application to suit your needs.
-
-xml is a great starting point...but, not as easily consumed.
-Backups are configuration based:
-
-
-Disaster recovery scenarios, it is 
-Took 2 minutes to get the entire MIT;
-About 107 M 
-Total number of managed objects;
-servers - chassis and rack servers;
+Whether you are recovering from multiple failed components or the inadvertent deletion of a policy
+the above report will prove useful.  You can modify or augment this report to harvest the
+information that is most valuable to your UCS deployment.  Also, since the report is produced off-line,
+you cannot affect the production system and you always have the complete MIT in an xml file at your
+disposal.
 
 </body>
 </html>
+
 
 

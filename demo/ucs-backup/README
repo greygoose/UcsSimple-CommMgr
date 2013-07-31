@@ -78,7 +78,7 @@ This can be done by running the following command:
 The MIT will be stored in an xml file in the BACKUP_DIR (as specified in the backup.cfg configuration file).
 File will be similar in form to the following:
 
-    backup/ucs-backup-2013-07-30-22_36_43.xml
+    ucs-backup-report backup/ucs-backup-2013-07-30-22_36_43.xml
 
 
 =head2 Create a UCS Backup Report 

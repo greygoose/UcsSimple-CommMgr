@@ -10,7 +10,7 @@ use Log::Log4perl qw (get_logger);
 use Data::Dumper;
 use Config::Std;
 use File::Spec;
-use File::Copy::Recursive qw(fcopy);
+use File::Copy::Recursive qw(dircopy);
 use DateTime;
 use Slurp;
 
@@ -175,11 +175,16 @@ sub initReport
     }
 
     my ($lVolume, $lDir, $lXmlFilename) = File::Spec->splitpath($lXmlFile);
- 
-    my $lDirName = 'REPORT-' . $lXmlFilename;
-    my $lBackupDir = File::Spec->catfile( $lAppCfg->backupHome(), $lDirName );
-    $lAppCfg->backupDir($lBackupDir);
-    mkdir $lBackupDir or die "Could not create backup directory ($lBackupDir) $!";
+
+    my $lBackupDir = 'REPORT-' . $lXmlFilename;
+    if ($lBackupDir =~ /(.*).xml$/)
+    {
+        $lBackupDir = $1;
+    }
+    my $lQualBackupDir = File::Spec->catfile( $lAppCfg->backupHome(), $lBackupDir );
+
+    $lAppCfg->backupDir($lQualBackupDir);
+    mkdir $lQualBackupDir or die "Could not create backup directory ($lQualBackupDir) $!";
 
     my $lCfgDir = File::Spec->catfile( $lAppCfg->backupDir(), "cfg");
     $lAppCfg->cfgDir($lCfgDir);
@@ -187,7 +192,8 @@ sub initReport
 
     # Copy the css directory to my backup directory
     my $lCssSrcDir = File::Spec->canonpath( $lAppCfg->cssDir() );
-    fcopy($lCssSrcDir, $lBackupDir);
+    my $lAssetDir = File::Spec->catfile( $lBackupQualBackupDir, "assets");
+    dircopy($lCssSrcDir, $lAssetDir) or die "Could not copy css directory $!";
 }
 
 
