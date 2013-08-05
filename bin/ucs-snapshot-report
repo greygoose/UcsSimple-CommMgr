@@ -7,23 +7,17 @@ use XML::LibXML;
 use Getopt::Long;
 use Carp qw(croak cluck confess);
 use Log::Log4perl qw (get_logger);
-use Data::Dumper;
 use Config::Std;
 use File::Spec;
 use File::Copy::Recursive qw(dircopy);
 use DateTime;
 use Slurp;
 
-use UcsSimple::XmlUtil;
 use UcsSimple::DomUtil;
 use UcsSimple::SchemaParser;
 
 use constant ELEMENT_NODE => 1;
-use constant MAX_FAILURES => 10;
-use constant SLEEP_TIME => 600;
 
-my $lFailures = 0;
-my $lCookie = undef;
 my $lCfgFile = undef;
 my $lXmlFile = undef;
 
@@ -192,7 +186,7 @@ sub initReport
 
     # Copy the css directory to my backup directory
     my $lCssSrcDir = File::Spec->canonpath( $lAppCfg->cssDir() );
-    my $lAssetDir = File::Spec->catfile( $lBackupQualBackupDir, "assets");
+    my $lAssetDir = File::Spec->catfile( $lQualBackupDir, "assets");
     dircopy($lCssSrcDir, $lAssetDir) or die "Could not copy css directory $!";
 }
 
@@ -206,7 +200,7 @@ sub getDocHead
 <html>
     <head>
         <meta charset="utf-8" />
-        <title>UCS Serivice Profile Backup </title>
+        <title>UCS Domain Backup Report </title>
 
        <!-- Include Styles -->
         <link rel="stylesheet" href="assets/themes/smoothness/jquery-ui.css" />		
@@ -3388,10 +3382,9 @@ sub getHtmlTable
     use Carp qw(croak cluck confess);
     use Log::Log4perl qw (get_logger);
 
-    use Data::Dumper;
     use Class::MethodMaker
         [ 
-            scalar => [ qw/ uri userName password backupHome backupDir cfgDir spDns logCfgFile schemaFile cssDir / ],
+            scalar => [ qw/ backupHome backupDir cfgDir spDns logCfgFile schemaFile cssDir / ],
         ];
 
     sub new 
@@ -3402,7 +3395,7 @@ sub getHtmlTable
 
         $self->spDns();
 
-        foreach my $lName ( qw/ uri userName password backupHome backupDir cfgDir spDns logCfgFile schemaFile cssDir /)
+        foreach my $lName ( qw/ backupHome backupDir cfgDir spDns logCfgFile schemaFile cssDir /)
         {
             if (exists $aInRefArgs->{$lName})
             {
@@ -3456,18 +3449,6 @@ sub loadConfig
     my $lHome = File::Spec->canonpath( $lBackupHome ) ;
     $lAppCfg->backupHome($lHome); 
 
-    my $lUri = $lConfig->{'UCS'}->{'URI'}; 
-    my $lUname = $lConfig->{'UCS'}->{'UNAME'}; 
-    my $lPasswd = $lConfig->{'UCS'}->{'PASSWORD'};
-    
-    if ((!defined($lUri)) || (!defined($lUname)) || (!defined($lPasswd)))
-    {
-    	die "Missing necessary connection settings";
-    }    
-    $lAppCfg->uri($lUri);
-    $lAppCfg->userName($lUname);
-    $lAppCfg->password($lPasswd);
-
     return $lAppCfg;
 }
 
@@ -3476,7 +3457,6 @@ sub loadConfig
     package SpInfo;
     use Carp qw(croak cluck confess);
 
-    use Data::Dumper;
     use Class::MethodMaker
         [
             scalar => [ qw/ dn assignState assocState type isInstance pooled poolName poolDn foundPhys spEl physEl pnDn physClass filename policyRefs policyCfgFiles / ],
@@ -3625,7 +3605,7 @@ sub loadConfig
 sub usage
 {
     print "For usage information:\n";
-    print "\n\tperldoc ucs-backup-report\n\n";
+    print "\n\tperldoc ucs-snapshot-report\n\n";
     exit;
 }
 
@@ -3634,16 +3614,17 @@ __END__
 
 =head1 NAME
 
-ucs-backup-report - Produce a report detailing UCS domain information and service profile configuration from a UCS domain backop.
-                   This report may be useful for disaster recovery scenario's as it contains configuration
-                   and operational data on the service profiles.
+ucs-snapshot-report - Produce a report detailing UCS domain information and service profile configuration from a UCS MIT snapshot.
+                      This report may be useful for disaster recovery scenario's as it contains configuration and operational data 
+                      on the service profiles.
 
 
 =head1 USAGE
 
-ucs-backup-report [options]
+ucs-snapshot-report [options]
 
-    ucs-backup-report --cfg=./cfg/demo.conf --xml=ucs-backup.xml
+    ucs-snapshot-report --cfg=./cfg/demo.conf --xml=ucs-snapshot.xml
+
 
 =head1 CONFIGURATION FILE CONTENTS
 
@@ -3662,7 +3643,6 @@ d1 SEE ALSO
 
 L<LOG4PERL> for log4perl configuration file.
 L<UcsSimple::Util>
-L<UcsSimple::XmlUtil>
 
 =head1 AUTHOR
 
@@ -3672,7 +3652,7 @@ Ike Kent, C<< <ikent at cisco.com> >>
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc ucs-backup-report
+    perldoc ucs-snapshot-report
 
 You can also look for information at:
 
