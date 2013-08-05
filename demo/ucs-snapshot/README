@@ -1,0 +1,127 @@
+UCS Snapshot Report
+
+Create a UCS Snapshot Report
+
+=head1 Purpose
+
+This document provides instructions on how to create a UCS Snapshot report using two simple perl scripts.
+
+=over
+
+=item 1 
+
+snapshot-mit.pl - to create a UCS MIT (Management Information Tree or configuration management database) Snapshot and save 
+it in xml format in a file.  
+
+=item 2 
+
+ucs-snapshot-report - to create a UCS Snapshot Report from a UCS MIT snapshot.  The UCS Snapshot Report is an html based report. 
+
+=back
+
+We will describe the installation and setup of each script independently since they may be installed and run 
+on different servers.  
+
+=head1 snapshot-mit.pl
+
+The snapshot-mit.pl script is used to take a snapshot of the MIT.  To do this, ip connectivity to the UCS Manager 
+and read privileges are required.  
+
+
+
+We assume that you have downloaded and installed the UcsSimple-CommMgr perl module.
+It can be downloaded from : 
+
+    https://github.com/greygoose/UcsSimple-CommMgr
+
+We also assume that you have downloaded the demo directory for the ucs-backup scripts.
+
+    https://github.com/greygoose/UcsSimple-CommMgr/tree/master/demo/ucs-backup
+
+We will refer to the local copy of this directory as "UCS_BACKUP_HOME".    
+It contains the following subdirectories:
+
+	assets - contains css and javascript that are used by the reports. 
+	cfg - contains configuration files that are used by the applications (described below).
+	doc - some documents.
+	schema - put your UCSM-IN schema file here.
+
+Download the UCS XML schema for the UCS Manager that you are running.  This can be downloaded from the Cisco Developer's 
+Network and can be copied into UCS_BACKUP_HOME/schema/
+
+Once you have downloaded these artifacts, you will update the "UCS_BACKUP_HOME/cfg/backup.cfg for your installation.  
+This file has the following settings:
+
+    # Configuration settings for the test application.
+    [UCS]
+    URI	= https://ucs-vip/nuova
+    UNAME = USERNAME
+    PASSWORD = PASSWORD
+
+    [APP]
+    LOG4PERL = /home/ikent/ucs-backup/cfg/log.cfg
+    SCHEMA = /home/ikent/ucs-backup/schema/UCSM-IN.xsd
+    CSS_DIR = /home/ikent/ucs-backup/assets
+    BACKUP_HOME = /home/ikent/ucs-backup/backup
+    MAX_BACKUP_FILES = 7
+
+(Please note the lack of security in storing credentials in a configuration file).
+
+
+=head2 Approach
+
+There are two steps to producing a backup report. 
+
+=over
+
+
+=item 1 
+
+Query the MIT and save it in a backup file.
+
+=item 2 
+
+Create a report from the queried backup file.
+
+=back
+
+
+
+=head2 Query and persist the MIT
+
+This can be done by running the following command:
+
+    ucs-backup-mit --cfg=./cfg/backup.cfg 
+
+The MIT will be stored in an xml file in the BACKUP_DIR (as specified in the backup.cfg configuration file).
+File will be similar in form to the following:
+
+    ucs-backup-report backup/ucs-backup-2013-07-30-22_36_43.xml
+
+
+=head2 Create a UCS Backup Report 
+
+We can create a backup report using the following command:
+
+    ucs-backup-report --cfg=./cfg/backup.cfg --xml=./backup/ucs-backup-2013-07-30-22_36_43.xml
+
+Now, we can open the report in our browser.  The filename will be index.html.
+
+
+=head1 AUTHOR
+
+Ike Kent, C<< <ikent at cisco.com> >>
+
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2013 Ike Kent.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+
+=cut
+
+
+
