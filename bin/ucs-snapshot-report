@@ -3623,23 +3623,21 @@ ucs-snapshot-report - Produce a report detailing UCS domain information and serv
 
 ucs-snapshot-report [options]
 
-    ucs-snapshot-report --cfg=./cfg/demo.conf --xml=ucs-snapshot.xml
+     ucs-snapshot-report --cfg=./cfg/report.cfg --xml=./snapshot/ucs-snapshot-2013-07-30-22_36_43.xml
 
 
 =head1 CONFIGURATION FILE CONTENTS
 
-    [UCS]
-    URI	= https://nikon-A/nuova
-    UNAME = admin
-    PASSWORD = Nbv12345
-
+    #
+    # Configuration settings for the UCS Snapshort report application ucs-snapshot-report.
+    #
     [APP]
+    SCHEMA = /home/bob/ucs-snapshot/schema/UCSM-IN.xsd
+    CSS_DIR = /home/bob/ucs-snapshot/assets
+    BACKUP_HOME = /bob/ikent/ucs-snapshot/snapshots
 
-    LOG4PERL = /home/ikent/demo/cfg/log.cfg
 
-    BACKUP_HOME = /home/ikent/backup
-
-d1 SEE ALSO
+head1 SEE ALSO
 
 L<LOG4PERL> for log4perl configuration file.
 L<UcsSimple::Util>

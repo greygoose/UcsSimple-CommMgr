@@ -4,7 +4,11 @@ Create a UCS Snapshot Report
 
 =head1 Purpose
 
-This document provides instructions on how to create a UCS Snapshot report using two simple perl scripts.
+This document provides instructions on how to create a UCS Snapshot and UCS Snapshot Report.
+
+=head2 Approach
+
+We can use two simple scripts to create a UCS Snapshot and UCS Snapshot Report: 
 
 =over
 
@@ -15,97 +19,140 @@ it in xml format in a file.
 
 =item 2 
 
-ucs-snapshot-report - to create a UCS Snapshot Report from a UCS MIT snapshot.  The UCS Snapshot Report is an html based report. 
+ucs-snapshot-report - to create a UCS Snapshot Report from a UCS MIT snapshot.  The UCS Snapshot Report is html format. 
 
 =back
 
-We will describe the installation and setup of each script independently since they may be installed and run 
-on different servers.  
 
-=head1 snapshot-mit.pl
-
-The snapshot-mit.pl script is used to take a snapshot of the MIT.  To do this, ip connectivity to the UCS Manager 
-and read privileges are required.  
+We will describe the installation and setup for each script independently since they may be installed and run 
+on different servers.
 
 
+=head2 snapshot-mit.pl
 
-We assume that you have downloaded and installed the UcsSimple-CommMgr perl module.
-It can be downloaded from : 
-
-    https://github.com/greygoose/UcsSimple-CommMgr
-
-We also assume that you have downloaded the demo directory for the ucs-backup scripts.
-
-    https://github.com/greygoose/UcsSimple-CommMgr/tree/master/demo/ucs-backup
-
-We will refer to the local copy of this directory as "UCS_BACKUP_HOME".    
-It contains the following subdirectories:
-
-	assets - contains css and javascript that are used by the reports. 
-	cfg - contains configuration files that are used by the applications (described below).
-	doc - some documents.
-	schema - put your UCSM-IN schema file here.
-
-Download the UCS XML schema for the UCS Manager that you are running.  This can be downloaded from the Cisco Developer's 
-Network and can be copied into UCS_BACKUP_HOME/schema/
-
-Once you have downloaded these artifacts, you will update the "UCS_BACKUP_HOME/cfg/backup.cfg for your installation.  
-This file has the following settings:
-
-    # Configuration settings for the test application.
-    [UCS]
-    URI	= https://ucs-vip/nuova
-    UNAME = USERNAME
-    PASSWORD = PASSWORD
-
-    [APP]
-    LOG4PERL = /home/ikent/ucs-backup/cfg/log.cfg
-    SCHEMA = /home/ikent/ucs-backup/schema/UCSM-IN.xsd
-    CSS_DIR = /home/ikent/ucs-backup/assets
-    BACKUP_HOME = /home/ikent/ucs-backup/backup
-    MAX_BACKUP_FILES = 7
-
-(Please note the lack of security in storing credentials in a configuration file).
-
-
-=head2 Approach
-
-There are two steps to producing a backup report. 
+The snapshot-mit.pl script will create a UCS MIT Snapshot.  It requires:
 
 =over
 
-
 =item 1 
 
-Query the MIT and save it in a backup file.
+IP connectivity to UCS Manager;
 
 =item 2 
 
-Create a report from the queried backup file.
+Perl;
+
+=item 3
+
+UCSM Manager Credentials (only read-only is required);
 
 =back
 
 
 
-=head2 Query and persist the MIT
+Download and unzip the ucs-snapshot.tar.gz archive from here:
 
-This can be done by running the following command:
+	https://github.com/greygoose/UcsSimple-CommMgr/blob/master/demo/ucs-snapshot.tar.gz
 
-    ucs-backup-mit --cfg=./cfg/backup.cfg 
+For clarity, we refer to the top-level directory as SNAPSHOT_HOME.  The pertinent directories are: 
 
-The MIT will be stored in an xml file in the BACKUP_DIR (as specified in the backup.cfg configuration file).
-File will be similar in form to the following:
+	bin - contains the perl script ucs-snapshot-report.pl 
+	cfg - contains configuration files that are used by the applications (described below).
 
-    ucs-backup-report backup/ucs-backup-2013-07-30-22_36_43.xml
+Edit the script's configuration file SNAPSHOT_HOME/cfg/snapshot.cfg as appropriate for
+your UCS domain and snapshot directory.  The configuration file contains the following settings:
+
+    #
+    # Configuration settings for the snapshot-report.pl.
+    #
+    [UCS]
+    URI     = https://ucs-vip-ip /nuova
+    UNAME = admin
+    PASSWORD = PASSWORD
+
+    [APP]
+    # Local directory to store the UCS MIT Snapshot to:
+    BACKUP_HOME = /home/bob/ucs-snapshot/snapshots
+
+    # Maximum number of backup files to retain 
+    MAX_BACKUP_FILES = 7
 
 
-=head2 Create a UCS Backup Report 
+We will use the script SNAPSHOT_HOME/bin/snapshot-mit.pl to create a UCS MIT snapshot. 
+It can be launched as follows: 
+    perl snapshot-mit.pl --cfg=./cfg/snapshot.cfg
 
-We can create a backup report using the following command:
+The script will produce a MIT snapshot file with the time-stamp in its name, such as: 
+    ucs-snapshot-2013-07-30-22_36_43.xml
 
-    ucs-backup-report --cfg=./cfg/backup.cfg --xml=./backup/ucs-backup-2013-07-30-22_36_43.xml
 
-Now, we can open the report in our browser.  The filename will be index.html.
+
+=head2 ucs-snapshot-report
+
+This ucs-snapshot-report script can be used to create a report from a UCS MIT Snapshot.
+The script has the following requirements:
+
+=over
+
+=item 1 
+
+Perl;
+
+=item 2 
+
+Sufficient memory and disk space for processing UCS Snapshots since they are large files;
+
+=back
+
+
+Download the UcsSimple-CommMgr package from here: 
+	https://github.com/greygoose/UcsSimple-CommMgr
+
+Install the package - one effective way to install it and resolve package dependencies is by 
+using cpanm as follows:
+
+    cpanm -I UcsSimple-CommMgr-0.0001.tar.gz
+
+Download and unzip the ucs-snapshot.tar.gz archive from here:
+
+	https://github.com/greygoose/UcsSimple-CommMgr/blob/master/demo/ucs-snapshot.tar.gz
+
+For clarity, we refer to the top-level directory as SNAPSHOT_HOME.  
+The directory structure is as follows:
+
+	bin - contains the perl script ucs-backup-report.pl 
+	cfg - contains configuration files that are used by the applications (described below).
+	assets - contains css and javascript that are used by the reports. 
+	schema - put your UCSM-IN schema file here.
+
+Edit the script's configuration file SNAPSHOT_HOME/cfg/report.cfg as appropriate for
+your UCS domain and snapshot directory.  The configuration file contains the following settings:
+
+    #
+    # Configuration settings for the UCS Snapshort report application ucs-snapshot-report.
+    #
+    [APP]
+    SCHEMA = /home/bob/ucs-snapshot/schema/UCSM-IN.xsd
+    CSS_DIR = /home/bob/ucs-snapshot/assets
+    BACKUP_HOME = /bob/ikent/ucs-snapshot/snapshots
+
+Download the UCS XML schema for the UCS Manager version that you are running.  This can be downloaded from the Cisco Developer's 
+Network and can be copied into UCS_BACKUP_HOME/schema/
+
+You can generate a UCS MIT Report as follows:
+    
+	ucs-snapshot-report --cfg=./cfg/report.cfg --xml=./snapshot/ucs-snapshot-2013-07-30-22_36_43.xml
+
+Open the report file (index.html) in your browser.
+
+
+=head2 Security 
+
+The config files are used to store authentication information and thus care should be taken to
+assure they are properly protected. 
+
+The perl script turns off client side authentication.  You can edit the code to add if required.
+
 
 
 =head1 AUTHOR

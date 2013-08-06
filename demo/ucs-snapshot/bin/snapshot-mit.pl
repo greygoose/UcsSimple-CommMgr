@@ -514,7 +514,7 @@ sub getResolveDnXml
 sub usage 
 {
     print "For usage information:\n";
-    print "\n\tperldoc ucs-snapshot-mit\n\n";
+    print "\n\tperldoc snapshot-mit.pl\n\n";
     exit;
 }
 
@@ -545,8 +545,30 @@ snapshot-mit [options]
 
     snapshot-mit --uname=admin --passwd=pass --uri=https://ucs-vip-ip/nuova --backupHome=/home/joe/ucs-backup/ --maxBackups=7
 
-    snapshot-mit --cfg=./config/demo.conf 
+    snapshot-mit --cfg=./cfg/snapshot.cfg
 
+
+=head1 PURPOSE
+
+To create a UCS MIT (Management Information Tree or configuration management database) Snapshot and save it in xml format in a file.
+
+It requires:
+
+=over
+
+=item 1
+
+IP connectivity to UCS Manager;
+
+=item 2
+
+Perl;
+
+=item 3
+
+UCSM Manager Credentials (only read-only is required);
+
+=back
 
 =head1 REQUIRED ARGUMENTS
 
@@ -562,7 +584,6 @@ UCS connection arguments may be provided in a L<"CONFIGURATION FILE">
 =head1 OPTIONS
 
     --dn=<dn>                 Identifies the UCS subtree. Defaults to "".
-    --hier                    Return hierarchy of found managed objects. 
     --cfg=<config-file>       Specify a configuration file. 
     --usage                   Print a usage message.
 
@@ -573,21 +594,22 @@ A configuration file is used to store UCS connection information.
 The command line options can be read from a configuration file.
 Example configuration file:
 
+    #
+    # Configuration settings for the snapshot-report.pl.
+    #
     [UCS]
-    URI     = http://ucs-vip/nuova
+    URI     = https://ucs-vip-ip /nuova
     UNAME = admin
-    PASSWORD = Nbv12345
+    PASSWORD = PASSWORD
 
     [APP]
-    BACKUP_HOME = /home/ikent/backup
+    # Local directory to store the UCS MIT Snapshot to:
+    BACKUP_HOME = /home/bob/ucs-snapshot/snapshots
+
+    # Maximum number of backup files to retain
     MAX_BACKUP_FILES = 7
 
-=head1 SEE ALSO
 
-L<LOG4PERL> for log4perl configuration file.
-L<UcsSimple::Session>
-L<UcsSimple::CommMgr>
-L<UcsSimple::XmlUtil>
 
 =head1 AUTHOR
 
@@ -597,7 +619,7 @@ Ike Kent, C<< <ikent at cisco.com> >>
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc snapshot-mit
+    perldoc snapshot-mit.pl
 
 You can also look for information at:
 
