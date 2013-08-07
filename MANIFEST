@@ -27,8 +27,8 @@ bin/ucs-diff
 bin/xml-to-html
 bin/fault-reader
 bin/monitor-sp
-bin/ucs-backup-report
-bin/ucs-backup-mit
+bin/ucs-snapshot-report
+bin/ucs-snapshot-mit
 bin/show-identity
 bin/find-sp
 TODO
