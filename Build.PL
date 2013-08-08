@@ -20,7 +20,7 @@ Module::Build->new(
         'LWP::Protocol::https' => '6.03',
         'Log::Log4perl' => '>= 1.40',
         'Math::Int64' => '>= 0.29',
-        'Net::SSLeay' => '>= 1.46',
+        'Net::SSLeay' => '>= 1.36',
         'Mozilla::CA' => '>= 20130114',
         'Perl6::Slurp' => '>= 0.051001',
         'URI' => '>= 1.52',
