@@ -15,6 +15,7 @@ Module::Build->new(
         'File::Spec' => '>= 3.4',
         'File::Copy::Recursive' => '>= 0.38',
         'Getopt::Long' => '>= 2.38',
+        'IO::Socket' => '>= 5.10.1',
         'LWP' => '>= 6.04',
         'LWP::Protocol::https' => '6.03',
         'Log::Log4perl' => '>= 1.40',
