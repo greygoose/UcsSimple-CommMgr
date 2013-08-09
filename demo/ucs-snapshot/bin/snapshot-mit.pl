@@ -349,7 +349,7 @@ sub doPostXML
 
     if (defined($aInCbFile))
     {
-        print "Using call-back file to store response";
+        #print "Using call-back file to store response";
         $lResp = $UserAgent->request($lRequest, $aInCbFile);
     }
     else
@@ -604,7 +604,7 @@ Example configuration file:
 
     [APP]
     # Local directory to store the UCS MIT Snapshot to:
-    BACKUP_HOME = /home/bob/ucs-snapshot/snapshots
+    BACKUP_HOME = /home/ucsdev/ucs-snapshot/snapshots
 
     # Maximum number of backup files to retain
     MAX_BACKUP_FILES = 7

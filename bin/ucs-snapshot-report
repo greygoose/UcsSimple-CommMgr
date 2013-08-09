@@ -11,7 +11,7 @@ use Config::Std;
 use File::Spec;
 use File::Copy::Recursive qw(dircopy);
 use DateTime;
-use Slurp;
+use Perl6::Slurp;
 
 use UcsSimple::DomUtil;
 use UcsSimple::SchemaParser;
@@ -200,7 +200,7 @@ sub getDocHead
 <html>
     <head>
         <meta charset="utf-8" />
-        <title>UCS Domain Backup Report </title>
+        <title>UCS Domain Snapshot Report </title>
 
        <!-- Include Styles -->
         <link rel="stylesheet" href="assets/themes/smoothness/jquery-ui.css" />		
@@ -3632,9 +3632,9 @@ ucs-snapshot-report [options]
     # Configuration settings for the UCS Snapshort report application ucs-snapshot-report.
     #
     [APP]
-    SCHEMA = /home/bob/ucs-snapshot/schema/UCSM-IN.xsd
-    CSS_DIR = /home/bob/ucs-snapshot/assets
-    BACKUP_HOME = /bob/ikent/ucs-snapshot/snapshots
+    SCHEMA = /home/ucsdev/ucs-snapshot/schema/UCSM-IN.xsd
+    CSS_DIR = /home/ucsdev/ucs-snapshot/assets
+    BACKUP_HOME = /ucsdev/ikent/ucs-snapshot/snapshots
 
 
 head1 SEE ALSO
