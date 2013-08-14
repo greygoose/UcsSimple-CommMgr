@@ -306,9 +306,9 @@ sub getAboutText
 
 <p>
 This report was produced by the 
-<a href="github.com/greygoose/UcsSimple-CommMgr/tree/master/demo/ucs-snapshot.tar.gz" title="UCSM Snapshot Report">UCSM Snapshot Report </a>
+<a href="https://github.com/greygoose/UcsSimple-CommMgr/tree/master/demo/ucs-snapshot.tar.gz" title="UCSM Snapshot Report">UCSM Snapshot Report </a>
 application based on an MIT Snapshot.  For details on how to take an MIT Snapshot and/or generate a UCSM Snapshot Report, consult the
-<a href="github.com/greygoose/UcsSimple-CommMgr/blob/master/demo/ucs-snapshot/README" title="README">README</a>
+<a href="https://github.com/greygoose/UcsSimple-CommMgr/blob/master/demo/ucs-snapshot/README" title="README">README</a>
 </p>
 <p>
 The foundation of a UCSM Backup strategy should be to collect Full State and ALL Configuration Backups of the system
