@@ -3321,7 +3321,7 @@ sub printQueryInfo
     $lInfo .= "<li> The wwpn is taken from the initiator attribute of the vnicFcIf.\n"; 
     $lInfo .= "<li> The wwn is taken from the addr attribute of the vnicFcNode.\n";
     $lInfo .= "<li> IP information is taken from the classes vnicIP4VPooledAddr and vnicIP4StaticAddr.\n";
-    $lInfo = "</ul>";
+    $lInfo .= "</ul>";
     push @{$lRow}, $lInfo;
     push @{$lRows}, $lRow;
 
