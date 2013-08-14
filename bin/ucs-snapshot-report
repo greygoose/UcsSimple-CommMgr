@@ -3397,7 +3397,7 @@ sub printQueryInfo
     $lInfo .= "<li> storageUnit\n";
     $lInfo .= "<li> computeBlade\n";
     $lInfo .= "<li>computeRackUnit\n";
-    $lInfo .= "<li>adaptor\n";
+    $lInfo .= "<li>adaptorUnit\n";
     $lInfo .= "</li>\n";
     push @{$lRow}, $lInfo;
     push @{$lRows}, $lRow;
