@@ -25,6 +25,7 @@ my $lCfgFile = undef;
 my $lRetCode = 1;
 my $lBackupHome = undef;
 my $lMaxBackups = undef;
+my $lPrefix = 'ucs-snapshot-';
 
 
 # Specify the command line options and process the command line
@@ -57,6 +58,13 @@ if (defined($lCfgFile))
 
 usage() if ((!$lUname) || (!$lPasswd) || (!$lUri) || (!$lBackupHome) || ((!defined($lMaxBackups)) || ($lMaxBackups < 1)));
 
+if (!((-d $lBackupHome) && (-w $lBackupHome)))
+{
+    croak "Backup directory does not exist or is not writeable: " . $lBackupHome . "\n";
+}
+
+cleanup({ dir => $lBackupHome, prefix => $lPrefix, maxFiles => $lMaxBackups });
+
 my $UserAgent = LWP::UserAgent->new(SSL_verify_mode => 0x00);
 $UserAgent->ssl_opts( SSL_verify_mode => 0x00 );
 $UserAgent->ssl_opts( verify_hostname => 0 );
@@ -64,9 +72,8 @@ $UserAgent->ssl_opts( verify_hostname => 0 );
 my $lCookie =  doLogin({ uri => $lUri, name => $lUname, password => $lPasswd}); 
 croak "Failed to get cookie" if (!defined $lCookie);
 
-my $lBackupFileName = getBackupFileName({ backupHome => $lBackupHome });
+my $lBackupFileName = getBackupFileName({ backupHome => $lBackupHome, prefix => $lPrefix });
 print "MIT snapshot : " . $lBackupFileName . "\n";
-
 my $lSuccess = queryMit({uri => $lUri, cookie => $lCookie, cbFileName => $lBackupFileName });
 
 doLogout({ uri => $lUri, cookie => $lCookie }); 
@@ -220,9 +227,15 @@ sub getBackupFileName
     }  
     my $aInBackupHome = $aInRefArgs->{'backupHome'};
 
+    if (!exists($aInRefArgs->{'prefix'}))
+    {
+        confess "Missing mandatory argument: prefix";
+    } 
+    my $lPrefix = $aInRefArgs->{'prefix'};
+
     my $lDt = DateTime->now();
     my $lDtString = $lDt->strftime("%F-%H_%M_%S");
-    my $lBackupFilename = 'ucs-snapshot-' . $lDtString . '.xml';
+    my $lBackupFilename = $lPrefix . $lDtString . '.xml';
     my $lQualBackupFile = File::Spec->catfile( $aInBackupHome, $lBackupFilename);
     return $lQualBackupFile;
 }

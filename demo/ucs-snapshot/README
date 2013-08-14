@@ -66,13 +66,13 @@ your UCS domain and snapshot directory.  The configuration file contains the fol
     # Configuration settings for the snapshot-report.pl.
     #
     [UCS]
-    URI     = https://ucs-vip-ip /nuova
+    URI     = https://ucs-vip-ip/nuova
     UNAME = admin
     PASSWORD = PASSWORD
 
     [APP]
     # Local directory to store the UCS MIT Snapshot to:
-    BACKUP_HOME = /home/bob/ucs-snapshot/snapshots
+    BACKUP_HOME = /home/ucsdev/ucs-snapshot/snapshots
 
     # Maximum number of backup files to retain 
     MAX_BACKUP_FILES = 7
@@ -80,11 +80,10 @@ your UCS domain and snapshot directory.  The configuration file contains the fol
 
 We will use the script SNAPSHOT_HOME/bin/snapshot-mit.pl to create a UCS MIT snapshot. 
 It can be launched as follows: 
-    perl snapshot-mit.pl --cfg=./cfg/snapshot.cfg
+    ./bin/snapshot-mit.pl --cfg=./cfg/snapshot.cfg
 
 The script will produce a MIT snapshot file with the time-stamp in its name, such as: 
-    ucs-snapshot-2013-07-30-22_36_43.xml
-
+    /home/ucsdev/ucs-snapshot/snapshots/ucs-snapshot-2013-07-30-22_36_43.xml
 
 
 =head2 ucs-snapshot-report
@@ -98,7 +97,11 @@ The script has the following requirements:
 
 Perl;
 
-=item 2 
+=item 2
+
+Perl module XML::LibXML which has dependencies on libxml2. 
+ 
+=item 3
 
 Sufficient memory and disk space for processing UCS Snapshots since they are large files;
 
@@ -111,7 +114,7 @@ Download the UcsSimple-CommMgr package from here:
 Install the package - one effective way to install it and resolve package dependencies is by 
 using cpanm as follows:
 
-    cpanm -I UcsSimple-CommMgr-0.0001.tar.gz
+    sudo cpanm -I UcsSimple-CommMgr-0.0001.tar.gz
 
 Download and unzip the ucs-snapshot.tar.gz archive from here:
 
@@ -132,9 +135,9 @@ your UCS domain and snapshot directory.  The configuration file contains the fol
     # Configuration settings for the UCS Snapshort report application ucs-snapshot-report.
     #
     [APP]
-    SCHEMA = /home/bob/ucs-snapshot/schema/UCSM-IN.xsd
-    CSS_DIR = /home/bob/ucs-snapshot/assets
-    BACKUP_HOME = /bob/ikent/ucs-snapshot/snapshots
+    SCHEMA = /home/ucsdev/ucs-snapshot/schema/UCSM-IN.xsd
+    CSS_DIR = /home/ucsdev/ucs-snapshot/assets
+    BACKUP_HOME = /ucsdev/ikent/ucs-snapshot/snapshots
 
 Download the UCS XML schema for the UCS Manager version that you are running.  This can be downloaded from the Cisco Developer's 
 Network and can be copied into UCS_BACKUP_HOME/schema/

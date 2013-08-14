@@ -288,7 +288,7 @@ sub getNavTabs
                     <li tab="tab10"> WWNs </li> 
                     <li tab="tab11"> IPs </li>
                     <li tab="tab12"> IQNs </li>
-                    <li tab="tab13"> Topology</li>
+                    <li tab="tab13"> Queries </li>
                     <li tab="tab14">Configs</li>
                     <li tab="tab15"> About </li>
                 </ul>
@@ -305,13 +305,21 @@ sub getAboutText
     my $lText = <<'END_HEAD';
 
 <p>
-This application parses an XML file that contains the entire UCSM MIT
-in order to generate an html report of its contents.  
-Having the entire MIT archived is useful in a disaster recovery scenario since you 
-have both the system state and its configuration state;  Of equal importance
-is being able to extract the necessary information from the xml document and that is
-why we generate html pages.  Please note, that we only extract a sub-set of the 
-pertinent information as this software is provided for demonstration purposes only.  
+This report was produced by the 
+<a href="github.com/greygoose/UcsSimple-CommMgr/tree/master/demo/ucs-snapshot.tar.gz" title="UCSM Snapshot Report">UCSM Snapshot Report </a>
+application based on an MIT Snapshot.  For details on how to take an MIT Snapshot and/or generate a UCSM Snapshot Report, consult the
+<a href="github.com/greygoose/UcsSimple-CommMgr/blob/master/demo/ucs-snapshot/README" title="README">README</a>
+</p>
+<p>
+The foundation of a UCSM Backup strategy should be to collect Full State and ALL Configuration Backups of the system
+at regular intervals.  A UCSM MIT Snapshot can provide a useful addition to this strategy since it provides a complete
+MIT Snapshot that can be browsed and processed off-line in order to check the configuration and operational state of a UCS
+domain.  
+</p>
+
+<p>
+Please note, that we extract a sub-set of the pertinent information contained in the UCSM MIT Snapshot. 
+This UCSM Snapshot Report application is provided for demonstration purposes only.  
 You can redistribute it and/or modify it as you wish.
 </p>
 
@@ -425,9 +433,9 @@ sub printDomainInfo
     printIqnInfo ({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
 
     # 
-    # TOPOLOGY INFORMATION
+    # QUERY INFORMATION
     #
-    printTopologyInfo ({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
+    printQueryInfo ({ dnElMap => $lDnElMap, classElMap => $aInClassElMap, fhandle => $lFh });
 
     # 
     # POLICY CONFIG INFORMATION
@@ -491,7 +499,6 @@ sub printDomainOverview
         push @{$lRow}, "System Up Time";
         push @{$lRow}, $lTopSystem->getAttribute('systemUpTime');
         push @{$lRows}, $lRow;
-
     }
 
     $lSummaryTable = getHtmlTable({
@@ -1229,6 +1236,9 @@ sub printSpConfigInfo
     {
         print $aInFh "<h4>Referenced Policies</h4>";
         print $aInFh "\n";
+        print $aInFh "These are the policies referenced from the service profile.\n"; 
+        print $aInFh "Follow the link in order to view the xml that can be used to create the\n";
+        print $aInFh "corresponding policy.\n";
         print $aInFh $lCfgTable;
         print $aInFh "</br>";
         print $aInFh "\n\n";
@@ -1295,6 +1305,8 @@ sub printConfigInfo
     print $aInFh "\n";
     print $aInFh "<h4>Policy Configs</h4>";
     print $aInFh "\n";
+    print $aInFh "Many of the UCSM policies are listed below.  Follow the link in order to view the xml that can be used to create the \n";
+    print $aInFh "corresponding policy.\n";
     print $aInFh $lCfgTable;
     print $aInFh "</br>";
     print $aInFh "\n\n";
@@ -3283,7 +3295,7 @@ sub printFaultInfo
 
 
 
-sub printTopologyInfo
+sub printQueryInfo
 {
     my ($aInRefArgs) = @_;
 
@@ -3293,14 +3305,120 @@ sub printTopologyInfo
     }
     my $aInFh = $aInRefArgs->{'fhandle'};
 
+
+    my $lQueryTable = "";
+    my $lRows = [];
+
+    my $lRow = [];
+    push @{$lRow}, "Service Profile";
+    my $lInfo = "<ul>\n";
+    $lInfo .= "<li> Query lsServer for logical and computeBlade/computePhysical for physical hardware.\n";
+    $lInfo .= "<li> The pnDn attribute of lsServer contains the dn of the physical hardware.\n";
+    $lInfo .= "<li> The vnicEther and vnicEtherIf contain service profile vnic configuration.\n";
+    $lInfo .= "<li> The vnicFc and vnicFcIf contain service profile vhba configuration.\n";
+    $lInfo .= "<li> The uuid is taken from the uuid attribute of the computePhysical (computeBlade or computeRackUnit).\n";
+    $lInfo .= "<li> The mac address is taken from the addr attribute of the vnicEtherIf.\n"; 
+    $lInfo .= "<li> The wwpn is taken from the initiator attribute of the vnicFcIf.\n"; 
+    $lInfo .= "<li> The wwn is taken from the addr attribute of the vnicFcNode.\n";
+    $lInfo .= "<li> IP information is taken from the classes vnicIP4VPooledAddr and vnicIP4StaticAddr.\n";
+    $lInfo = "</ul>";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "UUIDs";
+    $lInfo = "<ul>\n";
+    $lInfo .= "<li> UUIDs are of class uuidpoolAddr.\n";
+    $lInfo .= "</ul>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "MACs";
+    $lInfo = "<ul>\n";
+    $lInfo .= "<li> UUIDs are of class macpoolAddr.\n";
+    $lInfo .= "</ul>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "WWNs";
+    $lInfo = "<ul>\n";
+    $lInfo .= "<li> WWNs are of class fcpoolAddr.\n";
+    $lInfo .= "</ul>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "IPs";
+    $lInfo = "<ul>\n";
+    $lInfo .= "<li> IPs are of class ippoolAddr.\n";
+    $lInfo .= "</ul>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "IQNs";
+    $lInfo = "<ul>\n";
+    $lInfo .= "<li> IQNs are of class iqnpoolAddr.\n";
+    $lInfo .= "</ul>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "Faults";
+    $lInfo = "<ul>\n";
+    $lInfo .= "<li> Faults are of class faultInst.\n";
+    $lInfo .= "<li> Use scope queries to find faults in a containment hierarchy.\n";
+    $lInfo .= "</ul>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "Firmware";
+    $lInfo = "<ul>\n";
+    $lInfo .= "<li> Firmware is of class firmwareRunning.\n";
+    $lInfo .= "<li> Use scope queries to find the firmware within a containment hierarchy.\n";
+    $lInfo .= "</ul>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+    $lRow = [];
+    push @{$lRow}, "Hardware";
+    $lInfo = "There are many classes of hardware, including:\n";
+    $lInfo .= "<ul>\n";
+    $lInfo .= "<li> networkElement\n";
+    $lInfo .= "<li> equipmentChassis\n";
+    $lInfo .= "<li> equipmentPsu,\n";
+    $lInfo .= "<li> equipmentFanModule\n";
+    $lInfo .= "<li> computeBoard\n";
+    $lInfo .= "<li> storageController\n";
+    $lInfo .= "<li> memoryUnit\n";
+    $lInfo .= "<li> storageUnit\n";
+    $lInfo .= "<li> computeBlade\n";
+    $lInfo .= "<li>computeRackUnit\n";
+    $lInfo .= "<li>adaptor\n";
+    $lInfo .= "</li>\n";
+    push @{$lRow}, $lInfo;
+    push @{$lRows}, $lRow;
+
+
+    $lQueryTable = getHtmlTable({
+        rows => $lRows,
+        headings => [ "Policy", "Query Details"],
+    });
+
     print $aInFh "\n\n";
     print $aInFh qq%<div class="tab-content">%;
     print $aInFh "\n\n";
 
     print $aInFh "\n\n";
-    print $aInFh qq%<H4> Topology </H4>%;
+    print $aInFh qq%<H4> Query Information </H4>%;
     print $aInFh "\n\n";
-    print $aInFh "We could print a topology diagram here\n\n";
+    print $aInFh "Below are some details of what queries were used to create this report:\n";
+
+    print $aInFh $lQueryTable;
+
     print $aInFh "</br>";
     print $aInFh qq%</div>%;
     print $aInFh "\n\n";
