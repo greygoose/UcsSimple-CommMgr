@@ -1,0 +1,76 @@
+<html>
+<head>
+<title> UCSM MIT Snapshot Report </title>
+</head>
+
+<body>
+<h1> UCSM MIT Snapshot Report </h2>
+
+One of the key components of Cisco UCS Manager is the MIT (Management Information Tree) or configuration management database.
+The MIT contains comprehensive system information on the hardware components, configured polices and system state.
+Cisco UCS Manager peforms configuration tasks based on the policies and configuration data stored in the MIT.  
+The UCS Manager GUI provides a user friendly view into the MIT for ease of monitoring and configuration.  
+Having access to the MIT data is critical for inventory, integration and disaster recovery purposes.  
+
+<p>
+
+Wouldn't it be great if we could take a snapshot of the UCSM MIT and browse its contents off-line?  
+This would allow us to investigate the MIT without the risk of impacting the UCS domain.  We could also
+view the system state at a time in the past - even if UCS Manager is unreachable (for example during disaster recovery).  
+This document illustrates how we can use a few simple scripts create a UCSM MIT Snapshot and harvest its contents to 
+produce a UCSM MIT Snapshot Report.
+
+<p>
+There are two scripts to run:
+
+<ul>
+<li> <b> snapshot-mit.pl </b> - queries the UCSM XML API for the entire MIT and stores it in an xml file (a UCSM MIT Snapshot).
+<li> <b> ucs-snapshot-report </b> - produces an html report based on the UCSM MIT Snapshot.
+</ul>
+
+
+The UCSM MIT Snapshot Report contains the following:
+
+<ul> 
+<li> Hardware inventory for each UCS component;
+<li> The installed firmware version for each UCS component;
+<li> A fault report with the complete list of UCS faults including their severity;
+<li> Navigation links to view the xml content to configure many UCS policies;
+<li> LAN and SAN configuration information;
+<li> UCS identity report - MAC, WWN, WWPN, UUID, IQN;
+</ul>
+
+For each service profile, it provides the following information:
+<ul>
+<li> All policies referenced from the service profile;
+<li> Hardware and firmware information if the service profile is associated with hardware;
+<li> Network and Storage VLANs;
+<li> Identities used by the service profile;
+</ul>
+
+Below is a screen-shot of the top-level view of a UCSM Snapshot Report.  
+</br>
+</br>
+<img src="./UCSM_Snapshot_Report.jpg" alt="Image showing a UCSM Snapshot Report"/>
+</br>
+</br>
+The best way to checkout an UCS MIT Snapshot Report is by generating your own.  
+You can download a virtual appliance
+<a href="https://dl.dropboxusercontent.com/u/23419507/UCS_Snapshot_Appliance/UCSM_Snapshot_Demo.ova"> UCSM_Snapshot_Demo.ova </a> with
+the scripts installed.  You can find instructions for configuring and running the application 
+in the <a href="https://dl.dropboxusercontent.com/u/23419507/UCS_Snapshot_Appliance/README"> README </a>.
+
+<p>
+
+A UCSM MIT Snapshot Report is particularly useful for disaster recovery scenarios.  Whether you are recovering from multiple failed 
+components or from the inadvertent deletion of a policy, it is useful to be able to view the previous system state.   In a future post, 
+I will discuss how we can augment your UCS disaster recovery regiment with a UCSM MIT Snapshot. 
+</p>
+
+
+</body>
+
+
+
+
+
