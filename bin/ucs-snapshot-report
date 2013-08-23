@@ -200,7 +200,7 @@ sub getDocHead
 <html>
     <head>
         <meta charset="utf-8" />
-        <title>UCS Domain Snapshot Report </title>
+        <title>UCSM MIT Snapshot Report </title>
 
        <!-- Include Styles -->
         <link rel="stylesheet" href="assets/themes/smoothness/jquery-ui.css" />		
@@ -271,7 +271,7 @@ END_HEAD
 sub getNavTabs
 {
     my $lTabs = <<'END_HEAD';
-        <h2 class="title">UCS Domain Backup </h2>
+        <h2 class="title">UCSM MIT Snapshot Report</h2>
 
             <div id="v-nav">
 
@@ -319,7 +319,7 @@ domain.
 
 <p>
 Please note, that we extract a sub-set of the pertinent information contained in the UCSM MIT Snapshot. 
-This UCSM Snapshot Report application is provided for demonstration purposes only.  
+This UCSM MIT Snapshot Report application is provided for demonstration purposes only.  
 You can redistribute it and/or modify it as you wish.
 </p>
 
@@ -3732,7 +3732,7 @@ __END__
 
 =head1 NAME
 
-ucs-snapshot-report - Produce a report detailing UCS domain information and service profile configuration from a UCS MIT snapshot.
+ucs-snapshot-report - Produce a report detailing UCSM domain information and service profile configuration from a UCSM MIT snapshot.
                       This report may be useful for disaster recovery scenario's as it contains configuration and operational data 
                       on the service profiles.
 
@@ -3747,7 +3747,7 @@ ucs-snapshot-report [options]
 =head1 CONFIGURATION FILE CONTENTS
 
     #
-    # Configuration settings for the UCS Snapshort report application ucs-snapshot-report.
+    # Configuration settings for the UCSM MIT Snapshort report application ucs-snapshot-report.
     #
     [APP]
     SCHEMA = /home/ucsdev/ucs-snapshot/schema/UCSM-IN.xsd
